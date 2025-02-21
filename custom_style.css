@@ -21,9 +21,9 @@
     margin-left: -2px;
 }
 
-/* 
+
 .marker-cluster-small div{
-    background-color: rgba(139, 139, 139, 0.6) !important;
+    background-color: rgba(139, 139, 139, 0.7) !important;
     color: #fff;
 }
 
@@ -50,5 +50,5 @@
 .marker-cluster-large{
     background-color: rgba(30, 30, 30, 0.3) !important;
     color: #fff;
-} */
+}
 
