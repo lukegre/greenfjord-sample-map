@@ -17,7 +17,7 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
 
     logger.info(f"Data loaded from {url}")
     m = folium.Map(location=[61, -46], zoom_start=9, max_zoom=16, tiles=None)
-    m.add_css_link('./custom_style.css')
+    m.add_css_link("custom_css", './custom_style.css')
     
     # adding background tiles
     tiles = viz.add_tiles(m)
