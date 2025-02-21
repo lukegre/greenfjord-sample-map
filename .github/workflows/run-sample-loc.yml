@@ -2,6 +2,9 @@ name: run-sample-loc-and-deploy
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   run-and-deploy:
