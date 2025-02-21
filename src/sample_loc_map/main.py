@@ -15,6 +15,7 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
     url = "https://docs.google.com/spreadsheets/d/1iiT7vFbSD5viC6HbDgk3-UziFO5OaffKlKr9PUTY5YM/edit?gid=0#gid=0"
     df_all = data.read_google_spreadsheet(url)
 
+    logger.info(f"Data loaded from {url}")
     m = folium.Map(location=[61, -46], zoom_start=9, max_zoom=16, tiles=None)
     
     # adding background tiles
@@ -41,7 +42,6 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
     if sname_html is not None:
         sname_html = pathlib.Path(sname_html)
         sname_html.parent.mkdir(parents=True, exist_ok=True)
-        
         m.save(sname_html, )
-    
-    return m
+        logger.success(f"Map saved to {sname_html}")
+
