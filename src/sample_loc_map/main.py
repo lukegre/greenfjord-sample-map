@@ -1,13 +1,14 @@
 import pathlib
 import folium
 from loguru import logger
+from typing import Union
 
 
 pwd = pathlib.Path(__file__).resolve().parent
 base = pwd.parent.parent
 
 
-def main(sname_html:str=base / "public/index.html")->folium.Map:
+def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.Map:
     from collections import defaultdict
     from . import data, viz
 
@@ -38,6 +39,9 @@ def main(sname_html:str=base / "public/index.html")->folium.Map:
     folium.plugins.GroupedLayerControl(markers, exclusive_groups=False, collapsed=False).add_to(m) 
 
     if sname_html is not None:
+        sname_html = pathlib.Path(sname_html)
+        sname_html.parent.mkdir(parents=True, exist_ok=True)
+        
         m.save(sname_html, )
     
     return m
