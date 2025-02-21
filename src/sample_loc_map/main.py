@@ -8,7 +8,7 @@ pwd = pathlib.Path(__file__).resolve().parent
 base = pwd.parent.parent
 
 
-def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.Map:
+def main(sname_html: Union[str, pathlib.Path] = base / "docs/index.html") -> folium.Map:
     from collections import defaultdict
     from . import data, viz
 
@@ -17,13 +17,15 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
 
     logger.info(f"Data loaded from {url}")
     m = folium.Map(location=[61, -46], zoom_start=9, max_zoom=16, tiles=None)
-    m.add_css_link("custom_css", './custom_style.css')
-    
+    m.add_css_link("custom_css", "./custom_style.css")
+
     # adding background tiles
-    tiles = viz.add_tiles(m)
+    viz.add_tiles(m)
 
     # adding greenfjord-logo to map
-    viz.add_logo_top_left(m, "https://greenfjord-project.ch/wp-content/uploads/2022/05/logo.svg")
+    viz.add_logo_top_left(
+        m, "https://greenfjord-project.ch/wp-content/uploads/2022/05/logo.svg"
+    )
 
     # adding marker cluster group for numerous samples
     mcg = folium.plugins.MarkerCluster(**viz.marker_cluster_defaults).add_to(m)
@@ -38,21 +40,23 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
         # adding markers to dictionary for GroupedLayerControl
         markers[cluster_html].append(fg)
         # creating markers for each group and adding to FeatureGroup
-        out = df.apply(viz.make_marker, parent=fg, axis=1)
+        df.apply(viz.make_marker, parent=fg, axis=1)
 
     # adding layer control (legend) to map
-    folium.plugins.GroupedLayerControl(markers, exclusive_groups=False, collapsed=False, sortLayers=False).add_to(m) 
-
+    folium.plugins.GroupedLayerControl(
+        markers, exclusive_groups=False, collapsed=False, sortLayers=False
+    ).add_to(m)
 
     if sname_html is not None:
         sname_html = pathlib.Path(sname_html)
         sname_html.parent.mkdir(parents=True, exist_ok=True)
-        m.save(sname_html, )
+        m.save(
+            sname_html,
+        )
         logger.success(f"Map saved to {sname_html}")
 
 
-
-def make_svg_circle(color:str="black", radius:int=7)->str:
+def make_svg_circle(color: str = "black", radius: int = 7) -> str:
     r = radius * 0.95
     c = radius
     d = 2 * radius
