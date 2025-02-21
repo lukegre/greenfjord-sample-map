@@ -16,7 +16,7 @@ def main(sname_html: Union[str, pathlib.Path] = base / "docs/index.html") -> fol
     df_all = data.read_google_spreadsheet(url)
 
     logger.info(f"Data loaded from {url}")
-    m = folium.Map(location=[61, -46], zoom_start=9, max_zoom=16, tiles=None)
+    m = folium.Map(location=[60.868, -46.148], zoom_start=10, max_zoom=16, tiles=None)
     m.add_css_link("custom_css", "./custom_style.css")
 
     # adding background tiles
