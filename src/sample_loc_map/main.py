@@ -17,6 +17,7 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
 
     logger.info(f"Data loaded from {url}")
     m = folium.Map(location=[61, -46], zoom_start=9, max_zoom=16, tiles=None)
+    m.add_css_link("custom_css", base / 'docs/custom_style.css')
     
     # adding background tiles
     tiles = viz.add_tiles(m)
@@ -28,16 +29,20 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
     mcg = folium.plugins.MarkerCluster(**viz.marker_cluster_defaults).add_to(m)
 
     markers = defaultdict(list)
-    for (cluster, group), df in df_all.groupby(["Cluster", "Group"]):
+    for (cluster, group), df in df_all.groupby(["Clustexwr", "Group"]):
+        color = df.background_color.unique()[0]
+        cluster_html = f"{make_svg_circle(color)}{cluster}"
+
         # using FeatureGroupSubGroup, but can also use folium.FeatureGroup
         fg = folium.plugins.FeatureGroupSubGroup(mcg, group).add_to(m)
         # adding markers to dictionary for GroupedLayerControl
-        markers[cluster].append(fg)
+        markers[cluster_html].append(fg)
         # creating markers for each group and adding to FeatureGroup
         out = df.apply(viz.make_marker, parent=fg, axis=1)
 
     # adding layer control (legend) to map
-    folium.plugins.GroupedLayerControl(markers, exclusive_groups=False, collapsed=False).add_to(m) 
+    folium.plugins.GroupedLayerControl(markers, exclusive_groups=False, collapsed=False, sortLayers=False).add_to(m) 
+
 
     if sname_html is not None:
         sname_html = pathlib.Path(sname_html)
@@ -45,3 +50,13 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
         m.save(sname_html, )
         logger.success(f"Map saved to {sname_html}")
 
+
+
+def make_svg_circle(color:str="black", radius:int=7)->str:
+    r = radius * 0.95
+    c = radius
+    d = 2 * radius
+    return """
+    <svg class="marker-legend" height="{d}" width="{d}" xmlns="http://www.w3.org/2000/svg">
+        <circle r="{r}" cx="{c}" cy="{c}" fill="{color}" stroke-width="1", stroke="black"/>
+    </svg>""".format(d=d, r=r, c=c, color=color)

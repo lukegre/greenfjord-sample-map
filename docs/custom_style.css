@@ -1,0 +1,54 @@
+
+.leaflet-control-layers-group-name{
+    font-size: 1.4em !important;
+    font-weight: bold !important;
+    margin-top: 10px !important;
+}
+
+.leaflet-control-layers-expanded{
+    width: 130px;
+}
+
+.leaflet-control-layers-selector{
+    color: #ccc;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+.marker-legend {
+    margin-right: 3px;
+    margin-bottom: 3px;
+    margin-left: -2px;
+}
+
+/* 
+.marker-cluster-small div{
+    background-color: rgba(139, 139, 139, 0.6) !important;
+    color: #fff;
+}
+
+.marker-cluster-small{
+    background-color: rgba(139, 139, 139, 0.3) !important;
+    color: #fff;
+}
+
+.marker-cluster-medium div{
+    background-color: rgba(80, 80, 80, 0.6) !important;
+    color: #fff;
+}
+
+.marker-cluster-medium{
+    background-color: rgba(80, 80, 80, 0.3) !important;
+    color: #fff;
+}
+
+.marker-cluster-large div{
+    background-color: rgba(30, 30, 30, 0.6) !important;
+    color: #fff;
+}
+
+.marker-cluster-large{
+    background-color: rgba(30, 30, 30, 0.3) !important;
+    color: #fff;
+} */
+

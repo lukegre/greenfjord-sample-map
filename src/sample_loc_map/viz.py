@@ -20,7 +20,7 @@ marker_cluster_defaults = dict(
     options=dict(
         disableClusteringAtZoom=12, 
         spiderfyOnMaxZoom=True, 
-        maxClusterRadius=60, 
+        maxClusterRadius=40, 
         showCoverageOnHover=False, 
         removeOutsideVisibleBounds=True))
 
@@ -139,7 +139,7 @@ def add_tiles(map):
     """
     # Set default properties for tile layers
     props = dict(max_zoom=16, control=False)
-    key = 'Background Tiles'
+    key = 'Base Maps'
     tiles = {key: []}
     
     # Add various tile layer options
