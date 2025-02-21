@@ -29,7 +29,7 @@ def main(sname_html:Union[str, pathlib.Path]=base / "docs/index.html")->folium.M
     mcg = folium.plugins.MarkerCluster(**viz.marker_cluster_defaults).add_to(m)
 
     markers = defaultdict(list)
-    for (cluster, group), df in df_all.groupby(["Clustexwr", "Group"]):
+    for (cluster, group), df in df_all.groupby(["Cluster", "Group"]):
         color = df.background_color.unique()[0]
         cluster_html = f"{make_svg_circle(color)}{cluster}"
 
