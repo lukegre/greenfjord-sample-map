@@ -1,3 +1,7 @@
+from functools import lru_cache
+
+
+@lru_cache
 def read_google_spreadsheet(url):
     """Read data from a publicly shared Google Spreadsheet.
 
@@ -23,7 +27,7 @@ def read_google_spreadsheet(url):
 
     url_csv = url.replace("/edit?gid=", "/export?format=csv&gid=")
 
-    logger.info(f"Reading {url_csv}")
+    logger.debug(f"Reading {url_csv}")
     df = pd.read_csv(url_csv, dtype=str, skiprows=1)
     df["Year"] = df.Year.astype(str).replace("nan", "")
     return df

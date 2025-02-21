@@ -24,7 +24,7 @@ GOOGLE_SATELLITE = dict(
 
 # Default settings for marker clustering
 marker_cluster_defaults = dict(
-    control=False,
+    control=True,
     options=dict(
         disableClusteringAtZoom=12,
         spiderfyOnMaxZoom=True,
@@ -191,3 +191,13 @@ def add_tiles(map):
     ).add_to(map)
 
     return tiles
+
+
+def make_svg_circle(color: str = "black", radius: int = 7) -> str:
+    r = radius * 0.95
+    c = radius
+    d = 2 * radius
+    return """
+    <svg class="marker-legend" height="{d}" width="{d}" xmlns="http://www.w3.org/2000/svg">
+        <circle r="{r}" cx="{c}" cy="{c}" fill="{color}" stroke-width="1", stroke="black"/>
+    </svg>""".format(d=d, r=r, c=c, color=color)
