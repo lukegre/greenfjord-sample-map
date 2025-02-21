@@ -1,4 +1,4 @@
-name: Run Sample Loc Map and Deploy
+name: run-sample-loc-and-deploy
 
 on:
   workflow_dispatch:
