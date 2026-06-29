@@ -87,6 +87,7 @@ def make_marker(
 
     popup = info.drop(prop_columns, errors="ignore").dropna()
     popup_html = popup.to_html(
+        escape=False,
         col_space=80,
         border=0,
         justify="left",

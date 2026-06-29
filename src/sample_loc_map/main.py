@@ -27,6 +27,7 @@ def main(sname_html: Union[str, pathlib.Path] = base / "docs/index.html") -> fol
 
     m = folium.Map(location=[60.868, -46.148], zoom_start=10, max_zoom=16, tiles=None)
     m.add_css_link("custom_css", "./custom_style.css")
+    m.add_js_link("custom_js", "./script.js")
     # adding greenfjord-logo to map
     viz.add_logo_top_left(m, LOGO_URL)
 
@@ -42,7 +43,7 @@ def main(sname_html: Union[str, pathlib.Path] = base / "docs/index.html") -> fol
     #     mc = folium.plugins.MarkerCluster(name=f"{year}", overlay=False, **viz.marker_cluster_defaults).add_to(m)
     #     _add_markers_to_subgroups(map=m, layer_control=mc, data=df)
         
-    folium.LayerControl(collapsed=False).add_to(m)
+    # folium.LayerControl(collapsed=False).add_to(m)
 
     if sname_html is not None:
         # creating parent directory
