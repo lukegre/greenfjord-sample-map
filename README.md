@@ -1,6 +1,7 @@
-# Interactive sample map
+# [GreenFjord sample map](https://lukegre.github.io/greenfjord-sample-map/)
 
-Map that is shown at the bottom of https://greenfjord-project.ch/publications/
-Note that the page is hosted from https://lukegre.github.io/greenfjord-sample-map/. 
+Interactive map that shows all samples and some metadata from the [GreenFjord Project](https://greenfjord-project.ch/) in South Western Greenland. 
 
-Need to migrate this to an official GreenFjord repository. 
+- Developed in Folium
+- Data retrieval is from Google Sheets
+- Also hosted on https://greenfjord-project.ch/publications/
