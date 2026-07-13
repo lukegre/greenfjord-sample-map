@@ -3,7 +3,7 @@
 build_map.py — Generate a self-contained HTML sampling-location map for the
 GreenFjord South Greenland campaign.
 
-Reads ``data/sample_locations.csv`` plus a ``config.yml`` and writes a single
+Reads ``data/sample_locations_merged.csv`` plus a ``config.yml`` and writes a single
 interactive Leaflet map (``greenfjord_sample_map.html``) styled to resemble the
 reference figure in ``docs/static_map_example.png``.
 
@@ -35,7 +35,10 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import base64
 import json
+import re
+import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -49,7 +52,7 @@ from ruamel.yaml import YAML
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 HERE = Path(__file__).resolve().parent
-DEFAULT_CSV = REPO_ROOT / "data" / "sample_locations.csv"
+DEFAULT_CSV = REPO_ROOT / "data" / "sample_locations_merged.csv"
 DEFAULT_CONFIG = HERE / "config.yml"
 DEFAULT_OUT = HERE / "greenfjord_sample_map.html"
 
@@ -76,31 +79,68 @@ def load_samples(csv_path: Path) -> pd.DataFrame:
     df["Lon"] = pd.to_numeric(df["Lon"], errors="coerce")
     df = df.dropna(subset=["Lat", "Lon"]).copy()
 
-    for col in ("Location", "Type", "icon", "Year", "Station ID"):
-        df[col] = df[col].fillna("").astype(str).str.strip()
+    for col in (
+        "Location",
+        "Type",
+        "icon",
+        "Year",
+        "Station ID",
+        "Group",
+        "Time",
+        "Link to paper",
+        "Link display",
+        "Extra",
+    ):
+        if col in df.columns:
+            df[col] = df[col].fillna("").astype(str).str.strip()
+        else:
+            df[col] = ""
+
+    # Year often arrives as a float ("2023.0"); render it as a plain integer.
+    def _clean_year(s: str) -> str:
+        if s in ("", "nan"):
+            return ""
+        try:
+            return str(int(float(s)))
+        except ValueError:
+            return s
+
+    df["Year"] = df["Year"].map(_clean_year)
 
     return df
 
 
-def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
-    """Drop samples whose CSV ``Type`` is excluded for their theme.
+def _sub_label(v) -> str:
+    """The sub-type label the features/legend use (empty Type -> placeholder)."""
+    s = "" if v is None else str(v)
+    return s or "(unspecified)"
+
+
+def compute_disabled_keys(df: pd.DataFrame, filters: dict) -> list[list[str]]:
+    """Sub-types that start toggled *off* in the interactive legend.
 
     ``filters['exclude_types']`` maps a theme name (or ``"*"`` for all themes)
-    to a list of ``Type`` values to remove.
+    to a list of ``Type`` values. Rather than dropping these samples, the map
+    keeps them and starts their legend entries disabled — exactly as if the
+    user had clicked them off — so they can be re-enabled interactively.
+
+    Returns ``[theme, subtype]`` pairs matching the keys the legend toggles.
     """
     exclude = (filters or {}).get("exclude_types", {}) or {}
     if not exclude:
-        return df
+        return []
 
     global_ex = {str(t) for t in exclude.get("*", []) or []}
-    drop = pd.Series(False, index=df.index)
-    for theme, types in exclude.items():
-        wanted = global_ex if theme == "*" else {str(t) for t in (types or [])}
-        if theme == "*":
-            drop |= df["Type"].isin(wanted)
-        else:
-            drop |= (df["Cluster"] == theme) & df["Type"].isin(wanted)
-    return df[~drop].copy()
+    present = {
+        (str(theme), _sub_label(st))
+        for theme, st in zip(df["Cluster"], df["Type"])
+    }
+    disabled = set()
+    for theme, subtype in present:
+        theme_ex = {str(t) for t in (exclude.get(theme, []) or [])}
+        if subtype in global_ex or subtype in theme_ex:
+            disabled.add((theme, subtype))
+    return sorted(list(pair) for pair in disabled)
 
 
 # --------------------------------------------------------------------------
@@ -115,18 +155,23 @@ def build_features(df: pd.DataFrame, themes: dict) -> list[dict]:
     for _, r in df.iterrows():
         theme = r["Cluster"]
         tcfg = themes.get(theme, {})
-        bits = [b for b in (r["Location"], r["Type"], r["Year"]) if b]
-        features.append(
-            {
-                "lat": round(float(r["Lat"]), 6),
-                "lon": round(float(r["Lon"]), 6),
-                "theme": theme,
-                "icon": r["icon"] or "circle",
-                "bg": tcfg.get("color", "#888888"),
-                "fg": tcfg.get("text_color", "#ffffff"),
-                "tip": " · ".join(bits),
-            }
-        )
+        features.append({
+            "lat": round(float(r["Lat"]), 6),
+            "lon": round(float(r["Lon"]), 6),
+            "theme": theme,
+            "icon": r["icon"] or "circle",
+            "bg": tcfg.get("color", "#888888"),
+            "fg": tcfg.get("text_color", "#ffffff"),
+            "subtype": r["Type"] or "(unspecified)",
+            "location": r["Location"],
+            "year": r["Year"],
+            "group": r["Group"],
+            "time": r["Time"],
+            "station": r["Station ID"],
+            "link": r["Link to paper"],
+            "link_display": r["Link display"],
+            "extra": r["Extra"],
+        })
     return features
 
 
@@ -137,16 +182,14 @@ def build_legend(df: pd.DataFrame, themes: dict) -> list[dict]:
     for theme, cfg in themes.items():
         if theme not in counts:
             continue
-        legend.append(
-            {
-                "theme": theme,
-                "label": cfg.get("label", theme),
-                "icon": cfg.get("legend_icon", "circle"),
-                "bg": cfg.get("color", "#888888"),
-                "fg": cfg.get("text_color", "#ffffff"),
-                "count": int(counts[theme]),
-            }
-        )
+        legend.append({
+            "theme": theme,
+            "label": cfg.get("label", theme),
+            "icon": cfg.get("legend_icon", "circle"),
+            "bg": cfg.get("color", "#888888"),
+            "fg": cfg.get("text_color", "#ffffff"),
+            "count": int(counts[theme]),
+        })
     return legend
 
 
@@ -186,8 +229,10 @@ def aggregate_transect(points: np.ndarray, n_bins: int) -> list[list[float]]:
         mask = (t >= lo) & (t <= hi) if i == n_bins - 1 else (t >= lo) & (t < hi)
         if not mask.any():
             continue
-        nodes.append([round(float(points[mask, 0].mean()), 6),
-                      round(float(points[mask, 1].mean()), 6)])
+        nodes.append([
+            round(float(points[mask, 0].mean()), 6),
+            round(float(points[mask, 1].mean()), 6),
+        ])
     return nodes
 
 
@@ -287,10 +332,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   /* ---- Individual sample badges ---- */
   .sample-badge {
     display: flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px; border-radius: 50%;
+    width: var(--badge-size, 26px); height: var(--badge-size, 26px); border-radius: 50%;
     border: 1.5px solid rgba(255, 255, 255, 0.9);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-    font-size: 11px; line-height: 1;
+    font-size: calc(var(--badge-size, 26px) * 0.5); line-height: 1;
     transition: transform 0.08s ease;
   }
   .sample-badge:hover { transform: scale(1.35); z-index: 10000; }
@@ -304,6 +349,29 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .pie-hole { fill: rgba(255,255,255,0.96); }
 
+  /* ---- Aggregated-cluster tooltip ---- */
+  .cluster-tt { font-family: var(--font); }
+  table.cluster-tip { border-collapse: collapse; font-size: 11.5px; }
+  .cluster-tip td { padding: 1px 7px; vertical-align: top; line-height: 1.5; }
+  .cluster-tip .ct-head {
+    font-weight: 700; font-size: 12.5px; color: var(--ink);
+    padding: 0 7px 4px; border-bottom: 1px solid #e2e7ec;
+  }
+  .cluster-tip tr:first-child + tr td { padding-top: 4px; }
+  .cluster-tip tr.ct-sec td { border-top: 1px solid #eef1f4; padding-top: 4px; }
+  .cluster-tip .ct-k { color: #8a949e; font-weight: 600; white-space: nowrap; }
+  .cluster-tip .ct-v { color: var(--ink); font-weight: 600; }
+  .cluster-tip .ct-item { color: var(--ink); }
+  .cluster-tip .ct-n { color: var(--ink); font-weight: 600; text-align: right; }
+  .cluster-tip a { color: #2f6fb0; font-weight: 600; text-decoration: none; }
+  .cluster-tip a:hover { text-decoration: underline; }
+
+  /* ---- Single-sample popup ---- */
+  .sample-popup .leaflet-popup-content { margin: 9px 12px; }
+  .sample-popup .leaflet-popup-content-wrapper { border-radius: 8px; }
+  .sample-tip .ct-v { font-weight: 500; }
+  .sample-tip .ct-v a { font-weight: 600; }
+
   /* ---- Place-name labels ---- */
   .place-label {
     background: transparent; border: none; box-shadow: none;
@@ -312,6 +380,11 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
       -1.5px 1.5px 0 #fff, 1.5px 1.5px 0 #fff, 0 0 4px #fff;
     white-space: nowrap;
   }
+  /* Left-side variant: text hugs the right edge so it sits left of the dot. */
+  .place-label.place-label-left { text-align: right; }
+  /* Re-enable pointer events (the "labels" pane is pointer-events:none, and the
+     property is inherited) so place names can be hovered-to-front. */
+  .place-label, .place-dot-icon, .place-dot { pointer-events: auto; }
   .place-dot {
     width: 7px; height: 7px; border-radius: 50%;
     background: #14324f; border: 1.5px solid #fff;
@@ -345,6 +418,10 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     margin: 0 0 8px; font-size: 13px; text-transform: uppercase;
     letter-spacing: 0.04em; color: #55616d;
   }
+  .legend-subhead {
+    margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: #55616d;
+  }
   .legend-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
   .legend-row + .legend-row { margin-top: 5px; }
   .legend-badge {
@@ -356,26 +433,71 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .legend-count { color: #8a949e; font-size: 11.5px; margin-left: auto; padding-left: 8px; }
   .legend-sep { border: none; border-top: 1px solid #e2e7ec; margin: 8px 0; }
+
+  /* interactive legend: expandable + clickable */
+  .legend-theme.clickable, .legend-sub.clickable, .legend-toggle.clickable { cursor: pointer; user-select: none; }
+  .legend-theme.clickable, .legend-toggle.clickable { padding: 1px 4px; margin: 0 -4px; border-radius: 5px; }
+  .legend-theme.clickable:hover, .legend-toggle.clickable:hover { background: rgba(0, 0, 0, 0.05); }
+  .legend-caret {
+    width: 11px; flex: 0 0 auto; font-size: 9px; color: #99a2ab;
+    text-align: center; transition: transform 0.12s ease;
+  }
+  .legend-caret.open { transform: rotate(90deg); }
+  .legend-subs { display: none; margin: 3px 0 5px 30px; }
+  .legend-subs.open { display: block; }
+  .legend-sub {
+    display: flex; align-items: center; gap: 7px; font-size: 12px;
+    color: #3d4650; padding: 1.5px 4px; margin: 0 -4px; border-radius: 5px;
+  }
+  .legend-sub:hover { background: rgba(0, 0, 0, 0.05); }
+  .legend-sub .dot {
+    width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto;
+    border: 1px solid rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+  }
+  .legend-sub .sub-count { margin-left: auto; color: #9aa3ac; font-size: 11px; padding-left: 8px; }
+  .legend-off { opacity: 0.45; }
+  .legend-off > .legend-label, .legend-off .sub-name { text-decoration: line-through; }
   .legend-line { width: 22px; height: 0; border-top: 3px solid #22375f; flex: 0 0 auto; }
   .legend-blob { width: 20px; height: 20px; border-radius: 50%; flex: 0 0 auto; }
+  .legend-town { width: 20px; display: flex; justify-content: center; flex: 0 0 auto; }
+  .legend-town span {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #14324f; border: 1.5px solid #fff; box-shadow: 0 0 2px rgba(0,0,0,0.5);
+  }
+  .legend-box {
+    width: 18px; height: 14px; border-radius: 2px; flex: 0 0 auto;
+    border: 2px solid #6b7280; background: transparent;
+  }
 
   /* ---- North arrow ---- */
   .north-arrow {
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px; padding: 6px 8px 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); text-align: center; width: 46px;
+    position: absolute; z-index: 1000;
+    padding: 6px 8px 4px; text-align: center; width: 46px;
+    /* No panel — a white halo keeps it legible on any basemap. */
+    filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff);
   }
   .north-arrow .arrow { font-size: 22px; color: var(--ink); line-height: 1; }
-  .north-arrow .n { font-weight: 800; font-size: 12px; letter-spacing: 0.05em; }
+  .north-arrow .n { font-weight: 800; font-size: 12px; letter-spacing: 0.05em; color: var(--ink); }
 
-  /* ---- Title card ---- */
-  .title-card {
-    background: var(--panel-bg); border: 1px solid var(--panel-border);
-    border-radius: 8px; padding: 8px 12px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); max-width: 320px;
+  /* ---- Scale bar (cartographic ruler: bracket bar + end ticks) ---- */
+  .leaflet-control-scale-line {
+    background: transparent; box-shadow: none; border-radius: 0;
+    border: 2.5px solid var(--ink); border-top: none;   /* bottom rule + two end ticks */
+    color: var(--ink); font-size: 11px; font-weight: 700;
+    letter-spacing: 0.03em; line-height: 1.15;
+    padding: 2px 6px 3px; text-align: center; white-space: nowrap;
+    /* White halo around the whole shape (text + bracket) so it reads on any basemap. */
+    filter: drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff);
   }
-  .title-card h1 { margin: 0; font-size: 15px; }
-  .title-card p { margin: 3px 0 0; font-size: 11.5px; color: #55616d; }
+  .leaflet-control-scale-line:not(:first-child) { margin-top: 3px; border-top: none; }
+
+  /* ---- Project logo ---- */
+  .map-logo {
+    position: absolute; z-index: 1000;
+    display: flex; align-items: center;
+  }
+  .map-logo a { display: block; line-height: 0; }
+  .map-logo img { display: block; width: auto; }
 </style>
 </head>
 <body>
@@ -399,36 +521,64 @@ const THEME_COLOR = {};
 LEGEND.forEach(function (e) { THEME_COLOR[e.theme] = e.bg; });
 
 // ------------------------------------------------------------------
-// Base layers
+// Base layers (from CFG.basemaps)
 // ------------------------------------------------------------------
-const terrain = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom: 18, attribution: "Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, TomTom" }
-);
-const opentopo = L.tileLayer(
-  "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-  { maxZoom: 17, attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)' }
-);
-const satellite = L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  { maxZoom: 18, attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics" }
-);
+const baseLayers = {};
+let defaultBase = null;
+(CFG.basemaps || []).forEach(function (b, i) {
+  const layer = L.tileLayer(b.url, { maxZoom: b.max_zoom || 18, attribution: b.attribution || "" });
+  baseLayers[b.name] = layer;
+  if (i === 0) defaultBase = layer; // the first basemap in the list loads by default
+});
 
 const bounds = CFG.view.bounds;
 const center = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
 
-const map = L.map("map", { center: center, zoom: 9, layers: [terrain], scrollWheelZoom: true });
+const map = L.map("map", { center: center, zoom: 9, layers: defaultBase ? [defaultBase] : [], scrollWheelZoom: true, zoomControl: false });
 
-// Panes: labels above everything; the atmosphere blob below the markers.
-map.createPane("labels");   map.getPane("labels").style.zIndex = 650;
+// Panes. z-index for boxes / samples / labels is author-configurable
+// (CFG.z_order); the atmosphere blob sits below them all.
+const ZO = CFG.z_order || {};
+map.createPane("boxesPane");   map.getPane("boxesPane").style.zIndex = ZO.boxes != null ? ZO.boxes : 400;
+map.createPane("samplesPane"); map.getPane("samplesPane").style.zIndex = ZO.samples != null ? ZO.samples : 600;
+map.createPane("labels");      map.getPane("labels").style.zIndex = ZO.labels != null ? ZO.labels : 650;
 map.getPane("labels").style.pointerEvents = "none";
-map.createPane("blob");     map.getPane("blob").style.zIndex = 350;
+map.getPane("tooltipPane").style.zIndex = ZO.tooltip != null ? ZO.tooltip : 700; // built-in pane
+map.createPane("blob");        map.getPane("blob").style.zIndex = 350;
 map.getPane("blob").style.pointerEvents = "none";
 
-L.control.layers(
-  { "Terrain (Esri)": terrain, "Topographic (OpenTopoMap)": opentopo, "Satellite (Esri)": satellite },
-  {}, { position: "topright", collapsed: true }
-).addTo(map);
+// Hover-to-front: lift ONLY the hovered place-name above everything else,
+// regardless of the configured pane z-order (CFG.z_order). We move just that
+// marker's icon element into a dedicated top pane on mouse-over and put it back
+// on mouse-out, so its neighbours stay where they are. HOVER_Z sits below the
+// tooltip pane (700) so tooltips still render on top. All panes share the map
+// pane's origin, so the icon keeps its position when re-parented.
+const HOVER_Z = 690;
+map.createPane("hoverTop");
+map.getPane("hoverTop").style.zIndex = HOVER_Z;
+// `layer` is the thing being hovered; `companions` (optional) are lifted with it
+// so, e.g., a place name and its dot rise together no matter which you hover.
+function enableHoverFront(layer, companions) {
+  const group = [layer].concat(companions || []);
+  layer.on("mouseover", function () {
+    const topPane = map.getPane("hoverTop");
+    group.forEach(function (l) {
+      const icon = l._icon;
+      if (!icon || icon.parentNode === topPane) return; // no icon yet, or already lifted
+      l._hoverOrigParent = icon.parentNode;
+      topPane.appendChild(icon);
+    });
+  });
+  layer.on("mouseout", function () {
+    group.forEach(function (l) {
+      const icon = l._icon;
+      if (icon && l._hoverOrigParent) l._hoverOrigParent.appendChild(icon);
+      l._hoverOrigParent = null;
+    });
+  });
+}
+
+L.control.layers(baseLayers, {}, { position: "topright", collapsed: true }).addTo(map);
 
 // Re-fit once the container truly has a size (guards against 0x0 at load).
 let userMoved = false;
@@ -448,6 +598,7 @@ map.whenReady(fitStudyArea);
 // Atmosphere blob — an L.circle (geographic radius) filled with a radial
 // gradient so it fades to transparent at the edge.
 // ------------------------------------------------------------------
+let ATMO_LAYER = null;   // exposed so the legend can toggle it
 (function () {
   const b = CFG.atmosphere_blob;
   if (!b) return;
@@ -477,26 +628,67 @@ map.whenReady(fitStudyArea);
   defs.appendChild(grad);
   svg.insertBefore(defs, svg.firstChild);
   circle._path.setAttribute("fill", "url(#atmoGrad)");
+  ATMO_LAYER = circle;
 })();
 
 // ------------------------------------------------------------------
 // Cruise lines (aggregated CTD transects)
 // ------------------------------------------------------------------
+// Cardinal-spline smoothing: densify the track so corners round off.
+// `smoothing` in [0,1]: 0 -> straight segments, 1 -> a full Catmull-Rom curve.
+function smoothTrack(coords, smoothing, steps) {
+  if (!smoothing || coords.length < 3) return coords;
+  const n = coords.length, out = [];
+  for (let i = 0; i < n - 1; i++) {
+    const p0 = coords[i > 0 ? i - 1 : 0];
+    const p1 = coords[i];
+    const p2 = coords[i + 1];
+    const p3 = coords[i + 2 < n ? i + 2 : i + 1];
+    for (let j = 0; j < steps; j++) {
+      const s = j / steps, s2 = s * s, s3 = s2 * s;
+      const h00 = 2 * s3 - 3 * s2 + 1;
+      const h10 = s3 - 2 * s2 + s;
+      const h01 = -2 * s3 + 3 * s2;
+      const h11 = s3 - s2;
+      const lat = h00 * p1[0] + h10 * (smoothing * (p2[0] - p0[0]) / 2) +
+                  h01 * p2[0] + h11 * (smoothing * (p3[0] - p1[0]) / 2);
+      const lon = h00 * p1[1] + h10 * (smoothing * (p2[1] - p0[1]) / 2) +
+                  h01 * p2[1] + h11 * (smoothing * (p3[1] - p1[1]) / 2);
+      out.push([lat, lon]);
+    }
+  }
+  out.push(coords[n - 1]);
+  return out;
+}
+
+const CRUISE_SMOOTHING = CFG.cruise_lines.smoothing != null ? CFG.cruise_lines.smoothing : 0;
+const CRUISE_WEIGHT = CFG.cruise_lines.weight || 3;
+// White "casing" drawn beneath each line so the transects stay legible over
+// dark backgrounds (glaciers, satellite imagery). Width/opacity are configurable.
+const CRUISE_HALO_WEIGHT = CFG.cruise_lines.halo_weight != null
+  ? CFG.cruise_lines.halo_weight : CRUISE_WEIGHT + 3;
+const CRUISE_HALO_COLOR = CFG.cruise_lines.halo_color || "#ffffff";
+const CRUISE_HALO_OPACITY = CFG.cruise_lines.halo_opacity != null
+  ? CFG.cruise_lines.halo_opacity : 0.6;
+const CRUISE_LAYERS = [];   // exposed so the legend can toggle the transects
 CRUISE_LINES.forEach(function (line) {
   if (!line.coords || line.coords.length < 2) return;
-  L.polyline(line.coords, {
+  const pts = smoothTrack(line.coords, CRUISE_SMOOTHING, 16);
+  // Group the halo and the coloured line so the legend toggles both together.
+  const halo = L.polyline(pts, {
+    color: CRUISE_HALO_COLOR,
+    weight: CRUISE_HALO_WEIGHT,
+    opacity: CRUISE_HALO_OPACITY,
+    lineJoin: "round", lineCap: "round",
+  });
+  const pl = L.polyline(pts, {
     color: CFG.cruise_lines.color || "#22375f",
-    weight: CFG.cruise_lines.weight || 3,
+    weight: CRUISE_WEIGHT,
     opacity: CFG.cruise_lines.opacity != null ? CFG.cruise_lines.opacity : 0.9,
     lineJoin: "round", lineCap: "round",
-  }).addTo(map);
-  // Small nodes at each aggregated station bin.
-  line.coords.forEach(function (c) {
-    L.circleMarker(c, {
-      radius: 3, color: "#fff", weight: 1.2,
-      fillColor: CFG.cruise_lines.color || "#22375f", fillOpacity: 1,
-    }).addTo(map);
   });
+  const grp = L.layerGroup([halo, pl]).addTo(map);
+  CRUISE_LAYERS.push(grp);
 });
 
 // ------------------------------------------------------------------
@@ -542,11 +734,54 @@ function pieClusterIcon(cluster) {
   return L.divIcon({ html: html, className: "pie-cluster", iconSize: [size, size], iconAnchor: [cx, cy] });
 }
 
+const BADGE_SIZE = (CFG.markers && CFG.markers.size) || 26;
+document.documentElement.style.setProperty("--badge-size", BADGE_SIZE + "px");
 function badgeIcon(s) {
   const html =
     '<div class="sample-badge" style="background:' + s.bg + ';color:' + s.fg + ';">' +
     '<i class="fa-solid fa-' + s.icon + '"></i></div>';
-  return L.divIcon({ html: html, className: "", iconSize: [22, 22], iconAnchor: [11, 11] });
+  const c = BADGE_SIZE / 2;
+  return L.divIcon({ html: html, className: "", iconSize: [BADGE_SIZE, BADGE_SIZE], iconAnchor: [c, c] });
+}
+
+// Click popup for a single sample — a small detail table. Renders link-like
+// fields (the paper link, "Extra") as clickable HTML when a URL/anchor is
+// present. The paper link's display text is the "Link display" column value,
+// falling back to the URL itself.
+function markerPopup(s) {
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function linkCell(v, label) {
+    const t = String(v).trim();
+    if (/<a\b/i.test(t)) return t;                                   // already HTML
+    if (/^https?:\/\//i.test(t))                                     // bare URL
+      return '<a href="' + esc(t) + '" target="_blank" rel="noopener">' + esc(label) + "</a>";
+    return esc(t);
+  }
+  const rows = [];
+  function add(label, val) {
+    if (val == null || String(val).trim() === "" || val === "(unspecified)") return;
+    rows.push('<tr><td class="ct-k">' + label + '</td><td class="ct-v">' + esc(val) + "</td></tr>");
+  }
+  function addLink(label, val, linkText) {
+    if (val == null || String(val).trim() === "") return;
+    rows.push('<tr><td class="ct-k">' + label + '</td><td class="ct-v">' + linkCell(val, linkText) + "</td></tr>");
+  }
+  add("Type", s.subtype);
+  add("Group", s.group);
+  add("Location", s.location);
+  add("Year", s.year);
+  add("Time", s.time);
+  add("Station", s.station);
+  if (s.lat != null && s.lon != null)
+    add("Lat, Lon", Number(s.lat).toFixed(5) + ", " + Number(s.lon).toFixed(5));
+  addLink("Paper", s.link, (s.link_display && String(s.link_display).trim()) || s.link);
+  addLink("More", s.extra, "Open");
+
+  return '<table class="sample-tip cluster-tip"><tbody>' +
+    '<tr><td class="ct-head" colspan="2">' + esc(s.theme) + "</td></tr>" +
+    rows.join("") + "</tbody></table>";
 }
 
 const clusters = L.markerClusterGroup({
@@ -554,73 +789,354 @@ const clusters = L.markerClusterGroup({
   showCoverageOnHover: false,
   spiderfyOnMaxZoom: true,
   iconCreateFunction: pieClusterIcon,
+  clusterPane: "samplesPane",
 });
 
-SAMPLES.forEach(function (s) {
-  const m = L.marker([s.lat, s.lon], { icon: badgeIcon(s), theme: s.theme, keyboard: false });
-  if (s.tip) m.bindTooltip(s.tip, { direction: "top", offset: [0, -10] });
-  clusters.addLayer(m);
+// One marker object per sample, tagged with theme + sub-type so the legend can
+// toggle visibility. SEP joins them into a single key.
+const SEP = "␟";
+const ALL_MARKERS = SAMPLES.map(function (s) {
+  const m = L.marker([s.lat, s.lon], { icon: badgeIcon(s), theme: s.theme, keyboard: false, pane: "samplesPane" });
+  m.bindPopup(markerPopup(s), { className: "sample-popup", maxWidth: 320, offset: [0, -6] });
+  m._key = s.theme + SEP + s.subtype;
+  m._s = s;
+  return m;
 });
+
+// Sub-types hidden via the legend. A marker is shown when its key is absent.
+// Seeded from CFG.disabled_types (config `filters.exclude_types`), so those
+// sub-types start toggled off but can be re-enabled by clicking the legend.
+const hidden = new Set();
+(CFG.disabled_types || []).forEach(function (p) { hidden.add(p[0] + SEP + p[1]); });
+function refreshClusters() {
+  clusters.clearLayers();
+  clusters.addLayers(ALL_MARKERS.filter(function (m) { return !hidden.has(m._key); }));
+}
+refreshClusters();
 map.addLayer(clusters);
+
+// ------------------------------------------------------------------
+// Aggregated-cluster tooltips
+//   location : mode (most common value)   lat/lon : median
+//   years    : counts                     cluster : counts
+// ------------------------------------------------------------------
+function clusterTooltip(cluster) {
+  const kids = cluster.getAllChildMarkers();
+  const locs = {}, years = {}, themes = {};
+  const lats = [], lons = [];
+  kids.forEach(function (m) {
+    const s = m._s || {};
+    if (s.location) locs[s.location] = (locs[s.location] || 0) + 1;
+    if (s.year) years[s.year] = (years[s.year] || 0) + 1;
+    if (s.theme) themes[s.theme] = (themes[s.theme] || 0) + 1;
+    if (s.lat != null) lats.push(s.lat);
+    if (s.lon != null) lons.push(s.lon);
+  });
+
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function mode(obj) {
+    let best = null, n = -1;
+    Object.keys(obj).forEach(function (k) { if (obj[k] > n) { n = obj[k]; best = k; } });
+    return best;
+  }
+  function median(arr) {
+    if (!arr.length) return null;
+    const a = arr.slice().sort(function (x, y) { return x - y; });
+    const m = Math.floor(a.length / 2);
+    return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+  }
+  // [key, count] pairs ordered by `order` if given, else by count desc.
+  function ordered(obj, order) {
+    const keys = order
+      ? order.filter(function (k) { return obj[k]; })
+      : Object.keys(obj).sort(function (a, b) { return obj[b] - obj[a]; });
+    return keys.map(function (k) { return [k, obj[k]]; });
+  }
+  // A row where the value spans the item + count columns.
+  function spanRow(label, value) {
+    return '<tr><td class="ct-k">' + label + '</td>' +
+           '<td class="ct-v" colspan="2">' + value + "</td></tr>";
+  }
+  // One row per [item, count] pair; the label spans them via rowspan.
+  function groupRows(label, pairs) {
+    if (!pairs.length) return "";
+    return pairs.map(function (p, i) {
+      const head = i === 0
+        ? '<td class="ct-k" rowspan="' + pairs.length + '">' + label + "</td>" : "";
+      return "<tr>" + head + '<td class="ct-item">' + esc(p[0]) +
+             '</td><td class="ct-n">' + p[1] + "</td></tr>";
+    }).join("");
+  }
+
+  const medLat = median(lats), medLon = median(lons);
+  const sections = [];
+  const topLoc = mode(locs);
+  if (topLoc) sections.push(spanRow("Location", esc(topLoc))); // mode, no count
+  if (medLat != null) sections.push(spanRow("Lat/Lon", medLat.toFixed(2) + ", " + medLon.toFixed(2)));
+  const yrs = ordered(years, Object.keys(years).sort());
+  if (yrs.length) sections.push(groupRows("Years", yrs));
+  const cls = ordered(themes, THEME_ORDER);
+  if (cls.length) sections.push(groupRows("Cluster", cls));
+
+  // A light rule between major sections (added to each section but the first).
+  const rows = sections.map(function (s, i) {
+    return i ? s.replace("<tr", '<tr class="ct-sec"') : s;
+  }).join("");
+
+  return '<table class="cluster-tip"><tbody>' +
+    '<tr><td class="ct-head" colspan="3">' + kids.length + " samples</td></tr>" +
+    rows + "</tbody></table>";
+}
+
+clusters.on("clustermouseover", function (e) {
+  const c = e.propagatedFrom || e.layer;
+  c.unbindTooltip();
+  c.bindTooltip(clusterTooltip(c), { direction: "top", offset: [0, -14], className: "cluster-tt" });
+  c.openTooltip();
+});
+clusters.on("clustermouseout", function (e) {
+  (e.propagatedFrom || e.layer).closeTooltip();
+});
 
 // ------------------------------------------------------------------
 // Glacier context boxes
 // ------------------------------------------------------------------
+const BOX_DEF = CFG.box_defaults || {};
+function boxStyleKey(b, key, fallback) {
+  if (b[key] !== undefined && b[key] !== null) return b[key];
+  if (BOX_DEF[key] !== undefined && BOX_DEF[key] !== null) return BOX_DEF[key];
+  return fallback;
+}
+// Rewrite a rectangle's SVG path as a rounded rect. A lat/lon box projects to
+// an axis-aligned rectangle in layer-point space, so we can round it directly.
+// Recomputed on every redraw so the corner radius stays constant in pixels.
+function roundBox(rect, bounds, radius) {
+  if (!radius || !rect._path) return;
+  const bb = L.latLngBounds(bounds);
+  const nw = map.latLngToLayerPoint(bb.getNorthWest());
+  const se = map.latLngToLayerPoint(bb.getSouthEast());
+  const x0 = Math.min(nw.x, se.x), x1 = Math.max(nw.x, se.x);
+  const y0 = Math.min(nw.y, se.y), y1 = Math.max(nw.y, se.y);
+  const r = Math.max(0, Math.min(radius, (x1 - x0) / 2, (y1 - y0) / 2));
+  rect._path.setAttribute("d",
+    "M " + (x0 + r) + " " + y0 + " L " + (x1 - r) + " " + y0 +
+    " Q " + x1 + " " + y0 + " " + x1 + " " + (y0 + r) +
+    " L " + x1 + " " + (y1 - r) + " Q " + x1 + " " + y1 + " " + (x1 - r) + " " + y1 +
+    " L " + (x0 + r) + " " + y1 + " Q " + x0 + " " + y1 + " " + x0 + " " + (y1 - r) +
+    " L " + x0 + " " + (y0 + r) + " Q " + x0 + " " + y0 + " " + (x0 + r) + " " + y0 + " Z");
+}
+
+const BOX_LAYERS = [];   // rect + label per box, exposed so the legend can toggle them
 (CFG.boxes || []).forEach(function (b) {
-  L.rectangle(b.bounds, { color: b.color, weight: 2.5, fill: false }).addTo(map);
+  const color = b.color || "#444444";
+  const fill = !!boxStyleKey(b, "fill", false);
+  const dash = boxStyleKey(b, "dash_array", "");
+  const rect = L.rectangle(b.bounds, {
+    pane: "boxesPane",
+    color: color,
+    weight: boxStyleKey(b, "weight", 2.5),
+    dashArray: dash ? String(dash) : null,
+    lineJoin: "round",
+    fill: fill,
+    fillColor: b.fill_color || color,
+    fillOpacity: fill ? boxStyleKey(b, "fill_opacity", 0.08) : 0,
+  }).addTo(map);
+
+  // Drop-shadow (applied to the SVG path element).
+  if (boxStyleKey(b, "shadow", false)) {
+    const off = boxStyleKey(b, "shadow_offset", [0, 2]);
+    rect._path.style.filter = "drop-shadow(" + (off[0] || 0) + "px " + (off[1] || 0) +
+      "px " + boxStyleKey(b, "shadow_blur", 6) + "px " +
+      boxStyleKey(b, "shadow_color", "rgba(0,0,0,0.35)") + ")";
+  }
+
+  // Rounded corners: redraw the path after every Leaflet path update, and
+  // again whenever the box is (re-)added to the map via the legend toggle.
+  const radius = boxStyleKey(b, "corner_radius", 0);
+  if (radius) {
+    const apply = function () { roundBox(rect, b.bounds, radius); };
+    apply();
+    map.on("zoomend moveend viewreset", apply);
+    rect.on("add", apply);
+  }
+
+  const labelColor = b.label_color || color;
+  const labelSize = boxStyleKey(b, "label_size", 13);
   const ne = L.latLngBounds(b.bounds).getNorthEast();
-  L.marker(ne, {
+  const label = L.marker(ne, {
     interactive: false, pane: "labels",
     icon: L.divIcon({
       className: "glacier-label",
-      html: '<span style="color:' + b.color + '">' + b.name.replace(/ /g, "<br>") + "</span>",
+      html: '<span style="color:' + labelColor + ';font-size:' + labelSize + 'px">' +
+            b.name.replace(/ /g, "<br>") + "</span>",
       iconSize: [130, 40], iconAnchor: [-6, 10],
     }),
   }).addTo(map);
+  BOX_LAYERS.push(rect, label);
 });
 
 // ------------------------------------------------------------------
 // Town labels
 // ------------------------------------------------------------------
+const TOWN_LAYERS = [];   // dot + label per town, exposed so the legend can toggle them
+const TOWN_LABELS = [];   // {name, lat, lon, label, width, preferSide, side} for collision layout
+const TOWN_GAP = 6;       // px between the dot and its label
+const TOWN_H = 18;        // label box height (px)
+
+// Build the label divIcon for a given side. "right" text starts just right of
+// the dot; "left" text ends just left of it (anchor accounts for text width).
+function townIcon(name, side, width) {
+  if (side === "left") {
+    return L.divIcon({
+      className: "place-label place-label-left", html: '<span class="pl-txt">' + name + "</span>",
+      iconSize: [width, TOWN_H], iconAnchor: [width + TOWN_GAP, 14],
+    });
+  }
+  return L.divIcon({
+    className: "place-label", html: '<span class="pl-txt">' + name + "</span>",
+    iconSize: [width, TOWN_H], iconAnchor: [-TOWN_GAP, 14],
+  });
+}
+
 (CFG.towns || []).forEach(function (p) {
-  L.marker([p.lat, p.lon], {
-    interactive: false, pane: "labels",
-    icon: L.divIcon({ className: "", html: '<div class="place-dot"></div>', iconSize: [7, 7], iconAnchor: [3, 3] }),
+  // interactive so place names can be hovered-to-front; the "labels" pane is
+  // pointer-events:none, so the icon elements re-enable events via CSS.
+  const dot = L.marker([p.lat, p.lon], {
+    interactive: true, pane: "labels",
+    icon: L.divIcon({ className: "place-dot-icon", html: '<div class="place-dot"></div>', iconSize: [7, 7], iconAnchor: [3, 3] }),
   }).addTo(map);
-  L.marker([p.lat, p.lon], {
-    interactive: false, pane: "labels",
-    icon: L.divIcon({ className: "place-label", html: p.name, iconSize: [120, 18], iconAnchor: [-6, 14] }),
+  const preferSide = p.side === "left" ? "left" : "right";
+  const label = L.marker([p.lat, p.lon], {
+    interactive: true, pane: "labels",
+    icon: townIcon(p.name, preferSide, 120),
   }).addTo(map);
+  enableHoverFront(dot, [label]);
+  enableHoverFront(label, [dot]);
+  TOWN_LAYERS.push(dot, label);
+  TOWN_LABELS.push({ name: p.name, lat: p.lat, lon: p.lon, label: label, width: 120, preferSide: preferSide, side: preferSide });
 });
 
+// Keep place-name labels from overlapping each other: flip a label to the
+// opposite side of its dot when its preferred side collides with a label that
+// has already been placed (greedy, north-to-south, deterministic).
+function layoutTownLabels() {
+  if (!TOWN_LABELS.length) return;
+  // Refresh measured text widths (they change with font loading / zoom is fixed).
+  TOWN_LABELS.forEach(function (t) {
+    const el = t.label.getElement();
+    const span = el && el.querySelector(".pl-txt");
+    if (span && span.offsetWidth) t.width = span.offsetWidth;
+  });
+
+  function boxFor(pt, side, w) {
+    const y1 = pt.y - 14, y2 = pt.y - 14 + TOWN_H;
+    return side === "left"
+      ? { x1: pt.x - TOWN_GAP - w, x2: pt.x - TOWN_GAP, y1: y1, y2: y2 }
+      : { x1: pt.x + TOWN_GAP, x2: pt.x + TOWN_GAP + w, y1: y1, y2: y2 };
+  }
+  function overlaps(a, b) { return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1; }
+  function hits(box, placed) {
+    let n = 0;
+    for (let i = 0; i < placed.length; i++) if (overlaps(box, placed[i])) n++;
+    return n;
+  }
+
+  const placed = [];
+  TOWN_LABELS.slice().sort(function (a, b) { return b.lat - a.lat; }).forEach(function (t) {
+    const pt = map.latLngToLayerPoint([t.lat, t.lon]);
+    const other = t.preferSide === "left" ? "right" : "left";
+    const preferBox = boxFor(pt, t.preferSide, t.width);
+    let side = t.preferSide, box = preferBox;
+    if (hits(preferBox, placed) > 0) {
+      const otherBox = boxFor(pt, other, t.width);
+      if (hits(otherBox, placed) < hits(preferBox, placed)) { side = other; box = otherBox; }
+    }
+    if (side !== t.side) { t.label.setIcon(townIcon(t.name, side, t.width)); t.side = side; }
+    placed.push(box);
+  });
+}
+
+layoutTownLabels();
+setTimeout(layoutTownLabels, 0);              // re-run once widths are measurable
+map.on("zoomend moveend viewreset", layoutTownLabels);
+
 // ------------------------------------------------------------------
-// Legend — positioned in px from a chosen corner (CFG.legend.position)
+// Legend — positioned in px from a chosen corner (CFG.legend.position).
+// When interactive: theme rows expand to reveal sub-types, and clicking a
+// theme or sub-type toggles those samples; parent counts track what is shown.
 // ------------------------------------------------------------------
 (function () {
+  const interactive = CFG.legend.interactive !== false;
+  const startOpen = !!CFG.legend.start_expanded;
+
+  function esc(t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  // Sub-type breakdown per theme, derived from the samples.
+  const subCounts = {};
+  SAMPLES.forEach(function (s) {
+    (subCounts[s.theme] = subCounts[s.theme] || {});
+    subCounts[s.theme][s.subtype] = (subCounts[s.theme][s.subtype] || 0) + 1;
+  });
+  function themeSubs(t) { return Object.keys(subCounts[t] || {}); }
+
   const div = document.createElement("div");
   div.className = "legend";
-  let html = "<h4>" + (CFG.legend.title || "Legend") + "</h4>";
+  let html = "<h4>" + esc(CFG.legend.title || "Legend") + "</h4>";
   LEGEND.forEach(function (e) {
+    const subNames = themeSubs(e.theme).sort();
     html +=
-      '<div class="legend-row">' +
-      '<span class="legend-badge" style="background:' + e.bg + ';color:' + e.fg + ';">' +
-      '<i class="fa-solid fa-' + e.icon + '"></i></span>' +
-      "<span>" + e.label + "</span>" +
-      '<span class="legend-count">' + e.count + "</span></div>";
+      '<div class="legend-item" data-theme="' + esc(e.theme) + '">' +
+        '<div class="legend-row legend-theme' + (interactive ? " clickable" : "") + '">' +
+        (interactive ? '<span class="legend-caret' + (startOpen ? " open" : "") + '">▶</span>' : "") +
+        '<span class="legend-badge" style="background:' + e.bg + ";color:" + e.fg + ';">' +
+        '<i class="fa-solid fa-' + e.icon + '"></i></span>' +
+        '<span class="legend-label">' + esc(e.label) + "</span>" +
+        '<span class="legend-count">' + e.count + "</span></div>";
+    if (interactive && subNames.length) {
+      html += '<div class="legend-subs' + (startOpen ? " open" : "") + '">';
+      subNames.forEach(function (st) {
+        html +=
+          '<div class="legend-sub clickable" data-theme="' + esc(e.theme) + '" data-sub="' + esc(st) + '">' +
+          '<span class="dot" style="background:' + e.bg + '"></span>' +
+          '<span class="sub-name">' + esc(st) + "</span>" +
+          '<span class="sub-count">' + subCounts[e.theme][st] + "</span></div>";
+      });
+      html += "</div>";
+    }
+    html += "</div>";
   });
   html += '<hr class="legend-sep">';
+  html += '<div class="legend-subhead">Map features</div>';
   if (CRUISE_LINES.length) {
     html +=
-      '<div class="legend-row"><span class="legend-line" style="border-top-color:' +
-      (CFG.cruise_lines.color || "#22375f") + '"></span><span>' +
-      (CFG.legend.transect_label || "CTD transect") + "</span></div>";
+      '<div class="legend-row legend-toggle' + (interactive ? " clickable" : "") + '" data-layer="transect">' +
+      '<span class="legend-line" style="border-top-color:' +
+      (CFG.cruise_lines.color || "#22375f") + '"></span><span class="legend-label">' +
+      esc(CFG.legend.transect_label || "CTD transect") + "</span></div>";
   }
   if (CFG.atmosphere_blob) {
     const bc = CFG.atmosphere_blob.color || "#e7cf4f";
     html +=
-      '<div class="legend-row"><span class="legend-blob" style="background:radial-gradient(circle,' +
-      bc + ' 0%, rgba(255,255,255,0) 72%)"></span><span>' +
-      (CFG.legend.blob_label || "Atmospheric sampling") + "</span></div>";
+      '<div class="legend-row legend-toggle' + (interactive ? " clickable" : "") + '" data-layer="blob">' +
+      '<span class="legend-blob" style="background:radial-gradient(circle,' +
+      bc + ' 0%, rgba(255,255,255,0) 72%)"></span><span class="legend-label">' +
+      esc(CFG.legend.blob_label || "Atmospheric sampling") + "</span></div>";
+  }
+  if ((CFG.towns || []).length) {
+    html +=
+      '<div class="legend-row legend-toggle' + (interactive ? " clickable" : "") + '" data-layer="towns">' +
+      '<span class="legend-town"><span></span></span><span class="legend-label">' +
+      esc(CFG.legend.towns_label || "Place names") + "</span></div>";
+  }
+  if ((CFG.boxes || []).length) {
+    html +=
+      '<div class="legend-row legend-toggle' + (interactive ? " clickable" : "") + '" data-layer="boxes">' +
+      '<span class="legend-box"></span><span class="legend-label">' +
+      esc(CFG.legend.boxes_label || "Glacier boxes") + "</span></div>";
   }
   div.innerHTML = html;
 
@@ -634,37 +1150,259 @@ map.addLayer(clusters);
   map.getContainer().appendChild(div);
   L.DomEvent.disableClickPropagation(div);
   L.DomEvent.disableScrollPropagation(div);
+
+  // Map-overlay layers (CTD transects, atmosphere blob, place names, glacier
+  // boxes). setOverlay syncs the Leaflet layers AND greys the legend row so the
+  // current state is always visible. Runs regardless of legend interactivity so
+  // the zoom auto-rules below always apply.
+  const overlayToggles = {
+    transect: CRUISE_LAYERS,
+    blob: ATMO_LAYER ? [ATMO_LAYER] : [],
+    towns: TOWN_LAYERS,
+    boxes: BOX_LAYERS,
+  };
+  function setOverlay(key, on) {
+    const layers = overlayToggles[key];
+    if (!layers) return;
+    layers.forEach(function (l) { if (on) l.addTo(map); else map.removeLayer(l); });
+    const row = div.querySelector('.legend-toggle[data-layer="' + key + '"]');
+    if (row) row.classList.toggle("legend-off", !on);
+    if (on && key === "towns") layoutTownLabels();
+  }
+
+  // Zoom auto-rules: place names + glacier boxes are off at zoom 0-8, on from 9
+  // up; atmospheric sampling turns off at zoom 13+. Only fires on threshold
+  // crossings, so the user's manual toggles persist while zooming within a band.
+  let prevNear = null, prevFar = null;
+  function syncZoomOverlays() {
+    const z = map.getZoom();
+    const near = z >= 9;          // place names + glacier boxes visible
+    const far = z >= 13;          // atmospheric sampling suppressed
+    if (near !== prevNear) {
+      setOverlay("towns", near);
+      setOverlay("boxes", near);
+      prevNear = near;
+    }
+    if (far !== prevFar) {
+      setOverlay("blob", !far);
+      prevFar = far;
+    }
+  }
+  map.on("zoomend", syncZoomOverlays);
+  syncZoomOverlays();
+
+  if (!interactive) return;
+
+  function visibleCount(theme) {
+    const subs = subCounts[theme] || {};
+    let n = 0;
+    for (const st in subs) if (!hidden.has(theme + SEP + st)) n += subs[st];
+    return n;
+  }
+  function updateUI() {
+    div.querySelectorAll(".legend-sub").forEach(function (el) {
+      el.classList.toggle("legend-off", hidden.has(el.dataset.theme + SEP + el.dataset.sub));
+    });
+    div.querySelectorAll(".legend-item").forEach(function (item) {
+      const theme = item.dataset.theme;
+      item.querySelector(".legend-count").textContent = visibleCount(theme);
+      const allOff = themeSubs(theme).every(function (st) { return hidden.has(theme + SEP + st); });
+      item.querySelector(".legend-theme").classList.toggle("legend-off", allOff);
+    });
+  }
+  function toggleSub(theme, sub) {
+    const k = theme + SEP + sub;
+    if (hidden.has(k)) hidden.delete(k); else hidden.add(k);
+    refreshClusters(); updateUI();
+  }
+  function toggleTheme(theme) {
+    const subs = themeSubs(theme);
+    const allOff = subs.every(function (st) { return hidden.has(theme + SEP + st); });
+    subs.forEach(function (st) {
+      const k = theme + SEP + st;
+      if (allOff) hidden.delete(k); else hidden.add(k);
+    });
+    refreshClusters(); updateUI();
+  }
+
+  function toggleOverlay(row) {
+    // Currently greyed-out (off) -> turn on, and vice-versa.
+    setOverlay(row.dataset.layer, row.classList.contains("legend-off"));
+  }
+
+  div.addEventListener("click", function (ev) {
+    const caret = ev.target.closest(".legend-caret");
+    if (caret) {
+      caret.classList.toggle("open");
+      const subsEl = caret.closest(".legend-item").querySelector(".legend-subs");
+      if (subsEl) subsEl.classList.toggle("open");
+      return;
+    }
+    const overlay = ev.target.closest(".legend-toggle");
+    if (overlay) { toggleOverlay(overlay); return; }
+    const sub = ev.target.closest(".legend-sub");
+    if (sub) { toggleSub(sub.dataset.theme, sub.dataset.sub); return; }
+    const themeRow = ev.target.closest(".legend-theme");
+    if (themeRow) { toggleTheme(themeRow.closest(".legend-item").dataset.theme); }
+  });
+  updateUI();
 })();
 
 // ------------------------------------------------------------------
-// North arrow
+// North arrow — positioned in px from a chosen corner (like the legend).
 // ------------------------------------------------------------------
-const north = L.control({ position: "bottomright" });
-north.onAdd = function () {
-  const div = L.DomUtil.create("div", "north-arrow");
+(function () {
+  const cfg = CFG.north_arrow || {};
+  if (cfg.show === false) return;
+  const div = document.createElement("div");
+  div.className = "north-arrow";
   div.innerHTML = '<div class="arrow"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i></div><div class="n">N</div>';
-  return div;
-};
-north.addTo(map);
+  const pos = cfg.position || { anchor: "bottom-right", x: 12, y: 44 };
+  const anchor = pos.anchor || "bottom-right";
+  const x = (pos.x != null ? pos.x : 12) + "px";
+  const y = (pos.y != null ? pos.y : 44) + "px";
+  if (anchor.indexOf("right") >= 0) { div.style.right = x; } else { div.style.left = x; }
+  if (anchor.indexOf("top") >= 0) { div.style.top = y; } else { div.style.bottom = y; }
+  map.getContainer().appendChild(div);
+  L.DomEvent.disableClickPropagation(div);
+})();
 
 // ------------------------------------------------------------------
-// Title card
+// Project logo — an <img> pinned to a chosen corner (like the legend / north
+// arrow: anchor + px offset). Shown on a transparent background, or on a
+// coloured `background` band. Recolouring (config `logo.color`) happens at
+// build time — the SVG is edited and inlined as a data: URI in cfg.url.
 // ------------------------------------------------------------------
-const title = L.control({ position: "topleft" });
-title.onAdd = function () {
-  const div = L.DomUtil.create("div", "title-card");
-  div.innerHTML = "<h1>" + CFG.title + "</h1>" + (CFG.subtitle ? "<p>" + CFG.subtitle + "</p>" : "");
+(function () {
+  const cfg = CFG.logo || {};
+  if (cfg.show === false || !cfg.url) return;
+  const div = document.createElement("div");
+  div.className = "map-logo";
+  if (cfg.background) {
+    div.style.background = cfg.background;
+    div.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.18)";
+  }
+  if (cfg.padding) div.style.padding = cfg.padding;
+  const img = document.createElement("img");
+  img.src = cfg.url;
+  img.alt = cfg.alt || "Logo";
+  img.style.height = (cfg.height != null ? cfg.height : 64) + "px";
+  if (cfg.link) {
+    const a = document.createElement("a");
+    a.href = cfg.link;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.appendChild(img);
+    div.appendChild(a);
+  } else {
+    div.appendChild(img);
+  }
+  const pos = cfg.position || { anchor: "top-left", x: 0, y: 0 };
+  const anchor = pos.anchor || "top-left";
+  const x = (pos.x != null ? pos.x : 0) + "px";
+  const y = (pos.y != null ? pos.y : 0) + "px";
+  if (anchor.indexOf("right") >= 0) { div.style.right = x; } else { div.style.left = x; }
+  if (anchor.indexOf("top") >= 0) { div.style.top = y; } else { div.style.bottom = y; }
+  map.getContainer().appendChild(div);
   L.DomEvent.disableClickPropagation(div);
-  return div;
-};
-title.addTo(map);
+})();
+
+// ------------------------------------------------------------------
+// Scale bar (Leaflet control)
+// ------------------------------------------------------------------
+(function () {
+  const cfg = CFG.scale_bar || {};
+  if (cfg.show === false) return;
+  const pos = cfg.position;
+  const anchored = pos && typeof pos === "object" && pos.anchor;
+  const ctrl = L.control.scale({
+    // A plain string ("bottomright") is passed straight to Leaflet; the anchor
+    // object is repositioned by hand below, so it just needs a valid placeholder.
+    position: (typeof pos === "string" ? pos : "bottomright"),
+    maxWidth: cfg.max_width || 140,
+    metric: cfg.metric !== false,
+    imperial: !!cfg.imperial,
+  }).addTo(map);
+
+  if (anchored) {
+    // Position like the legend / north arrow: pin to a corner + px offset.
+    const el = ctrl.getContainer();
+    const anchor = pos.anchor || "bottom-right";
+    const x = (pos.x != null ? pos.x : 12) + "px";
+    const y = (pos.y != null ? pos.y : 12) + "px";
+    el.style.position = "absolute";
+    el.style.zIndex = 1000;
+    el.style.margin = "0";
+    if (anchor.indexOf("right") >= 0) { el.style.right = x; } else { el.style.left = x; }
+    if (anchor.indexOf("top") >= 0) { el.style.top = y; } else { el.style.bottom = y; }
+    map.getContainer().appendChild(el);   // out of the Leaflet corner, onto the map
+    L.DomEvent.disableClickPropagation(el);
+  }
+})();
 </script>
 </body>
 </html>
 """
 
 
-def render_html(cfg, features, legend, cruise_lines) -> str:
+def _bbox_to_leaflet(bbox):
+    """Convert a standard [west, south, east, north] bbox to Leaflet's
+    [[south, west], [north, east]] corner pair."""
+    w, s, e, n = bbox
+    return [[s, w], [n, e]]
+
+
+def _load_svg(src: str) -> str:
+    """Read an SVG from a local path or an http(s) URL."""
+    if re.match(r"^https?://", src):
+        with urllib.request.urlopen(src, timeout=15) as resp:  # noqa: S310 (trusted config URL)
+            return resp.read().decode("utf-8")
+    return Path(src).read_text(encoding="utf-8")
+
+
+def _recolor_svg(svg: str, color: str) -> str:
+    """Recolour a single-colour logo: drop its opaque background and paint the
+    (white) marks in ``color``.
+
+    Background = any ``<rect>`` that spans the whole canvas (its width/height
+    match the ``<svg>`` width/height); its fill is set to ``none``. White fills
+    (``#fff`` / ``#ffffff`` / ``white``) then become ``color``.
+    """
+    m = re.search(r"<svg\b[^>]*\bwidth=\"([\d.]+)\"[^>]*\bheight=\"([\d.]+)\"", svg)
+    if m:
+        w, h = m.group(1), m.group(2)
+
+        def _transparent_bg(rect: re.Match) -> str:
+            tag = rect.group(0)
+            if f'width="{w}"' in tag and f'height="{h}"' in tag:
+                return re.sub(r'fill="[^"]*"', 'fill="none"', tag)
+            return tag
+
+        svg = re.sub(r"<rect\b[^>]*/?>", _transparent_bg, svg)
+
+    return re.sub(r'fill="(?:#fff|#ffffff|white)"', f'fill="{color}"', svg, flags=re.I)
+
+
+def _prepare_logo(logo_cfg: dict) -> dict:
+    """If the logo requests a `color`, recolour its SVG at build time and inline
+    it as a self-contained data: URI (so it works regardless of CORS/origin)."""
+    logo = dict(logo_cfg or {})
+    color = logo.get("color")
+    url = logo.get("url")
+    if not color or not url:
+        return logo
+    try:
+        svg = _recolor_svg(_load_svg(url), color)
+    except Exception as exc:  # network down, moved asset, etc. — don't break the build
+        print(f"  warning: could not recolour logo ({exc}); using it as-is")
+        return logo
+    b64 = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+    logo["url"] = "data:image/svg+xml;base64," + b64
+    logo.pop("color", None)  # recolouring is now baked into the inlined SVG
+    return logo
+
+
+def render_html(cfg, features, legend, cruise_lines, disabled_keys=None) -> str:
     def dump(obj):
         return json.dumps(obj, ensure_ascii=False)
 
@@ -673,16 +1411,41 @@ def render_html(cfg, features, legend, cruise_lines) -> str:
     title = cfg.get("title", "Sampling locations")
     subtitle = (cfg.get("subtitle") or "").format(n_samples=n_samples, n_themes=n_themes)
 
+    # The legend heading supports {n_samples}/{n_themes} placeholders too.
+    legend_cfg = dict(cfg.get("legend", {}))
+    if legend_cfg.get("title"):
+        legend_cfg["title"] = legend_cfg["title"].format(n_samples=n_samples, n_themes=n_themes)
+
+    # Config bounds use standard bbox order [west, south, east, north]; Leaflet
+    # wants [[south, west], [north, east]], so convert before handing to JS.
+    view_cfg = dict(cfg.get("view", {}))
+    if view_cfg.get("bounds") is not None:
+        view_cfg["bounds"] = _bbox_to_leaflet(view_cfg["bounds"])
+    boxes_cfg = []
+    for box in cfg.get("boxes", []):
+        box = dict(box)
+        if box.get("bounds") is not None:
+            box["bounds"] = _bbox_to_leaflet(box["bounds"])
+        boxes_cfg.append(box)
+
     # The config object handed to JS (with the interpolated subtitle).
     js_cfg = {
         "title": title,
         "subtitle": subtitle,
-        "legend": cfg.get("legend", {}),
-        "view": cfg.get("view", {}),
+        "legend": legend_cfg,
+        "view": view_cfg,
+        "north_arrow": cfg.get("north_arrow", {}),
+        "scale_bar": cfg.get("scale_bar", {}),
+        "logo": _prepare_logo(cfg.get("logo", {})),
+        "z_order": cfg.get("z_order", {}),
+        "basemaps": cfg.get("basemaps", []),
         "towns": cfg.get("towns", []),
-        "boxes": cfg.get("boxes", []),
+        "box_defaults": cfg.get("box_defaults", {}),
+        "boxes": boxes_cfg,
         "atmosphere_blob": cfg.get("atmosphere_blob"),
         "cruise_lines": cfg.get("cruise_lines", {}),
+        "markers": cfg.get("markers", {}),
+        "disabled_types": disabled_keys or [],
     }
 
     return (
@@ -700,9 +1463,12 @@ def main() -> None:
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
-    parser.add_argument("--extract-tracks", action="store_true",
-                        help="Recompute cruise tracks from the CTD data and write "
-                             "the points back into the config YAML, then exit.")
+    parser.add_argument(
+        "--extract-tracks",
+        action="store_true",
+        help="Recompute cruise tracks from the CTD data and write "
+        "the points back into the config YAML, then exit.",
+    )
     args = parser.parse_args()
 
     df_all = load_samples(args.csv)
@@ -715,20 +1481,21 @@ def main() -> None:
     cfg = load_config(args.config)
     themes = cfg["themes"]
 
-    df = apply_filters(df_all, cfg.get("filters", {}))
-    n_dropped = len(df_all) - len(df)
-    features = build_features(df, themes)
-    legend = build_legend(df, themes)
-    cruise_lines = build_cruise_lines(df, cfg.get("cruise_lines", {}))
+    disabled_keys = compute_disabled_keys(df_all, cfg.get("filters", {}))
+    features = build_features(df_all, themes)
+    legend = build_legend(df_all, themes)
+    cruise_lines = build_cruise_lines(df_all, cfg.get("cruise_lines", {}))
 
-    html = render_html(cfg, features, legend, cruise_lines)
+    html = render_html(cfg, features, legend, cruise_lines, disabled_keys)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")
 
-    dropped = f", {n_dropped} filtered out" if n_dropped else ""
-    print(f"Wrote {args.out}  ({len(features)} samples{dropped}, {len(legend)} themes)")
+    disabled = f", {len(disabled_keys)} sub-types disabled by default" if disabled_keys else ""
+    print(f"Wrote {args.out}  ({len(features)} samples{disabled}, {len(legend)} themes)")
     for line in cruise_lines:
-        print(f"  cruise line: {line['name']:<15} {len(line['coords']):>2} points ({line['source']})")
+        print(
+            f"  cruise line: {line['name']:<15} {len(line['coords']):>2} points ({line['source']})"
+        )
 
 
 if __name__ == "__main__":

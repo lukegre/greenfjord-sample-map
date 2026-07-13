@@ -7,25 +7,108 @@
 # =====================================================================
 
 # ---- Static text -----------------------------------------------------
-# {n_samples} and {n_themes} are filled in automatically if present.
+# `title` sets the browser-tab title only — the on-map title box has been
+# removed, so the legend heading (legend.title) now labels the panel instead.
+# `subtitle` is currently unused ({n_samples}/{n_themes} would be filled in).
 title: "GreenFjord sampling locations"
 subtitle: "South Greenland · {n_samples} samples across {n_themes} research themes"
 
 legend:
-  title: "Research theme"
-  transect_label: "CTD transect"        # legend row for the cruise lines
-  blob_label: "Atmospheric sampling"    # legend row for the fading blob
+  title: "Sampling locations ({n_samples})" # {n_samples}/{n_themes} filled in
+  transect_label: "CTD transect" # legend row for the cruise lines
+  blob_label: "Atmospheric sampling" # legend row for the fading blob
+  towns_label: "Place names" # legend row toggling the town dots + labels
+  boxes_label: "Glacier boxes" # legend row toggling the glacier rectangles + labels
   # Position of the legend box, in pixels measured from one corner of the map.
   #   anchor: top-left | top-right | bottom-left | bottom-right
   #   x     : horizontal distance from that corner (px)
   #   y     : vertical distance from that corner (px)
-  position: {anchor: "bottom-left", x: 12, y: 12}
+  position: { anchor: "bottom-left", x: 12, y: 12 }
+  # Interactive legend: each theme row expands (caret) to reveal its sub-types,
+  # and clicking a theme or sub-type toggles those samples on/off on the map.
+  # Parent counts update to reflect what is currently shown.
+  interactive: true
+  start_expanded: false # begin with all themes expanded?
 
 # ---- Initial map view ------------------------------------------------
-# [[south, west], [north, east]]. All markers are still plotted; zooming
-# out reveals coastal samples beyond this frame.
+# Standard bbox order [west, south, east, north] (min-lon, min-lat, max-lon,
+# max-lat). All markers are still plotted; zooming out reveals coastal samples
+# beyond this frame.
 view:
-  bounds: [[60.60, -46.55], [61.45, -44.75]]
+  bounds: [ -47.458191, 60.466019, -45.079651, 61.150525 ]
+
+# ---- Map furniture: north arrow + scale bar --------------------------
+# North arrow. Position works like the legend: pick a corner to anchor to,
+# then offset in px from that corner.
+#   anchor: top-left | top-right | bottom-left | bottom-right
+north_arrow:
+  show: true
+  position: { anchor: "bottom-left", x: 245, y: 44 }
+
+# Scale bar (Leaflet control). Position works like the legend / north arrow:
+# pick a corner to anchor to, then offset in px from that corner.
+#   anchor: top-left | top-right | bottom-left | bottom-right
+# (A plain corner string like "bottomright" also still works.)
+scale_bar:
+  show: true
+  position: { anchor: "bottom-left", x: 240, y: 15 }
+  max_width: 80 # widest the bar may grow (px)
+  metric: true # show a metric (km/m) line
+  imperial: false # show an imperial (mi/ft) line
+
+# ---- Project logo ----------------------------------------------------
+# GreenFjord logo pinned to a corner like the legend / north arrow (anchor + px
+# offset). Set `show: false` to hide it.
+#   url        : image source (SVG/PNG); loaded by the browser at runtime
+#   link       : wrap the logo in a link to this URL (omit for no link)
+#   height     : logo height in px
+#   color      : recolour the logo (drop its background, paint the marks this
+#                colour) at build time and inline it — shown on a transparent
+#                background. Omit `color` and set `background` to instead show
+#                the logo as-is on a coloured band.
+#   background : band colour behind the logo (mutually exclusive with `color`)
+#   padding    : CSS padding around the logo ("top right bottom left")
+#   position   : { anchor: top-left|top-right|bottom-left|bottom-right, x, y }
+logo:
+  show: true
+  url: "https://greenfjord-project.ch/wp-content/uploads/2022/05/logo.svg"
+  link: "https://greenfjord-project.ch/"
+  height: 64
+  color: "#da003f" # GreenFjord brand red — marks recoloured, background dropped
+  padding: "10px 14px"
+  position: { anchor: "top-left", x: 0, y: 0 }
+
+# ---- Layer stacking (z-order) ----------------------------------------
+# Higher number = drawn on top. Controls which of these groups wins when
+# they overlap. (Cruise lines/atmosphere blob sit below these.)
+z_order:
+  boxes: 400 # glacier context rectangles
+  samples: 600 # sample markers + pie clusters
+  labels: 550 # town + glacier text labels
+  tooltip: 700 # hover tooltips (sample + aggregated-cluster)
+
+# ---- Basemaps --------------------------------------------------------
+# Tile layers offered in the top-right layer switcher. The FIRST one listed
+# here is shown on load — reorder this list to change the default basemap.
+# Note the axis order in the URL template: Esri uses {z}/{y}/{x}; most others
+# (OpenStreetMap/OpenTopoMap) use {z}/{x}/{y} and a {s} subdomain.
+basemaps:
+- name: CartoDB Voyager
+  url: "https://basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png"
+  attribution: CartoDB
+  max_zoom: 17
+- name: "Satellite (Esri)"
+  url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+  attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics"
+  max_zoom: 18
+- name: "OpenTopoMap"
+  url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+  attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
+  max_zoom: 17
+- name: "OpenStreetMap"
+  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  max_zoom: 18
 
 # ---- Research themes -------------------------------------------------
 # Default icon colours + legend styling, keyed by the CSV "Cluster" value.
@@ -35,18 +118,25 @@ view:
 #   legend_icon  : Font Awesome (v6 solid) icon shown in the legend
 #   label        : display name in the legend
 themes:
-  Ocean: {color: "#32507d", text_color: "#eef3f9", legend_icon: "ship", label: "Ocean"}
-  Human: {color: "#ef476f", text_color: "#ffffff", legend_icon: "user", label: "Human"}
-  Cryosphere: {color: "#5fb0d6", text_color: "#06303f", legend_icon: "snowflake", label: "Cryosphere"}
-  Atmosphere: {color: "#e7cf4f", text_color: "#3d3300", legend_icon: "wind", label: "Atmosphere"}
-  Land: {color: "#fa9f42", text_color: "#3a2200", legend_icon: "droplet", label: "Land"}
-  Biodiversity: {color: "#06d6a0", text_color: "#00382a", legend_icon: "fish", label: "Biodiversity"}
+  Ocean: { color: "#32507d", text_color: "#eef3f9", legend_icon: "ship", label: "Ocean" }
+  Human: { color: "#ef476f", text_color: "#ffffff", legend_icon: "user", label: "Human" }
+  Cryosphere: { color: "#5fb0d6", text_color: "#06303f", legend_icon: "snowflake", label: "Cryosphere" }
+  Atmosphere: { color: "#e7cf4f", text_color: "#3d3300", legend_icon: "wind", label: "Atmosphere" }
+  Land: { color: "#fa9f42", text_color: "#3a2200", legend_icon: "mountain", label: "Land" }
+  Biodiversity: { color: "#06d6a0", text_color: "#00382a", legend_icon: "fish", label: "Biodiversity" }
+
+# ---- Sample markers --------------------------------------------------
+# Single-measurement marker badges (not the aggregated pie clusters).
+#   size : badge diameter in px; the icon glyph scales with it. Default 26.
+markers:
+  size: 26
 
 # ---- Filters ---------------------------------------------------------
-# Drop specific sample sub-types (the CSV "Type" column) before plotting.
+# Start specific sample sub-types (the CSV "Type" column) toggled *off* in the
+# interactive legend — the samples stay in the data (and in the legend), just
+# disabled by default, exactly as if the user had clicked them off. They can be
+# re-enabled by clicking the legend entry.
 # Keys are research-theme names ("Cluster"); "*" applies to every theme.
-# Filtering affects the markers, pie clusters, legend counts, and (for the
-# Ocean theme) the auto-computed cruise tracks.
 # Available sub-types per theme:
 #   Ocean:        [CTD]
 #   Human:        [Guided tours, Interview, Observation, Photo, Semi-structured interview]
@@ -57,39 +147,68 @@ themes:
 #   Biodiversity: [Water]
 filters:
   exclude_types:
-    "*": []             # e.g. ["Faulty location"] to drop everywhere
+    "*": [] # e.g. ["Faulty location"] to drop everywhere
     Ocean: []
     Human: []
     Cryosphere: []
     Atmosphere: []
-    Land: []            # e.g. ["Sediment", "Ice"]
+    Land: [ "River mouth" ] # e.g. ["Sediment", "Ice", "River mouth"]
     Biodiversity: []
 
 # ---- Named towns -----------------------------------------------------
 # Only the towns listed here get a label + dot on the map.
 towns:
-  - {name: "Narsarsuaq", lat: 61.155, lon: -45.425}
-  - {name: "Narsaq", lat: 60.913, lon: -46.048}
-  - {name: "Qaqortoq", lat: 60.718, lon: -46.037}
-  - {name: "Igaliku", lat: 60.990, lon: -45.424}
+- { name: "Qassiarsuk", lat: 61.150, lon: -45.517 }
+- { name: "Narsarsuaq", lat: 61.155, lon: -45.425 }
+- { name: "Narsaq", lat: 60.913, lon: -46.048 }
+- { name: "Qaqortoq", lat: 60.718, lon: -46.037 }
+- { name: "Igaliku", lat: 60.990, lon: -45.424 }
 
 # ---- Glacier context boxes -------------------------------------------
-# Highlight rectangles with a label. bounds: [[south, west], [north, east]].
+# Highlight rectangles with a label. bounds: [west, south, east, north]
+# (min-lon, min-lat, max-lon, max-lat) — standard bbox order.
+# Style keys (all optional; per-box overrides the defaults, so `box_defaults`
+# styles every box identically unless a box sets its own value):
+#   color          : outline + label colour
+#   weight         : outline thickness (px)
+#   dash_array     : SVG dash pattern, e.g. "6 4" for dashed (""/omit = solid)
+#   corner_radius  : rounded-corner radius in px (0 = square corners)
+#   fill           : true/false — shade the box interior
+#   fill_color     : interior colour (defaults to `color`)
+#   fill_opacity   : interior opacity when fill is true
+#   shadow         : true/false — cast a drop-shadow behind the box
+#   shadow_color   : shadow colour (CSS colour, alpha allowed)
+#   shadow_blur    : shadow blur radius (px)
+#   shadow_offset  : [dx, dy] shadow offset (px)
+#   label_color    : label colour (defaults to `color`)
+#   label_size     : label font size (px)
+box_defaults:
+  weight: 5
+  dash_array: ""
+  corner_radius: 10
+  fill: false
+  fill_opacity: 0.05
+  shadow: true
+  shadow_color: "rgba(0,0,0,1)"
+  shadow_blur: 8
+  shadow_offset: [ 5, 8 ]
+  label_size: 16
 boxes:
-  - name: "Ocean-terminating glacier"
-    bounds: [[61.28, -45.90], [61.40, -45.55]]
-    color: "#1b7a6b"
-  - name: "Land-terminating glacier"
-    bounds: [[60.94, -45.10], [61.06, -44.70]]
-    color: "#c9772f"
+- name: "Ocean<br>terminating<br>glacier"
+  bounds: [ -45.925, 61.255, -45.62, 61.361 ]
+  color: "#1b7a6b"
+  # Igaliku land-fjord
+- name: Land<br>terminating<br>glacier"
+  bounds: [ -45.45, 60.88, -44.98, 61.05 ]
+  color: "#c9772f"
 
 # ---- Atmospheric sampling blob ---------------------------------------
 # A soft, radially-fading disc centred on a point (e.g. Narsaq).
 atmosphere_blob:
-  center: [60.913, -46.048]   # [lat, lon]
+  center: [ 60.913, -46.048 ] # [lat, lon]
   radius_km: 12
-  opacity: 0.55               # opacity at the centre (fades to 0 at the edge)
-  color: "#e7cf4f"            # blob colour (any CSS/hex colour)
+  opacity: 0.75 # opacity at the centre (fades to 0 at the edge)
+  color: "#e7cf4f" # blob colour (any CSS/hex colour)
 
 # ---- CTD cruise lines ------------------------------------------------
 # Each fjord's line is drawn through its `track` points (below), which you can
@@ -99,29 +218,41 @@ atmosphere_blob:
 # axis into `bins` nodes and writes the resulting points back here. A fjord is
 # assigned its stations by the leading character of the CTD "Station ID".
 cruise_lines:
-  bins: 9                     # nodes per fjord when regenerating with --extract-tracks
+  bins: 9 # nodes per fjord when regenerating with --extract-tracks
   color: "#22375f"
   weight: 3
   opacity: 0.9
+  # White "casing" drawn beneath each line so transects stay visible over dark
+  # backgrounds. halo_weight defaults to weight + 3; set halo_opacity: 0 to disable.
+  halo_color: "#91a5c2"
+  halo_weight: 6
+  halo_opacity: 0.3
+  # Rounded corners: 0 = straight segments (sharp corners), 1 = maximally
+  # smooth (a curve through every node). Values ~0.5–0.8 read as gentle bends.
+  smoothing: 0.7
   fjords:
-    - name: "EKAS Fjord"
-      station_prefix: "O"
-      track:                  # [[lat, lon], ...] — run --extract-tracks to fill
-        - [61.17386, -45.84114]
-        - [61.01725, -46.0005]
-        - [60.98017, -46.2365]
-        - [60.96691, -46.58591]
-        - [60.85867, -46.60533]
-        - [60.7815, -46.83475]
-        - [60.70667, -47.10167]
-        - [60.525, -47.614]
-    - name: "Igaliku Fjord"
-      station_prefix: "L"
-      track:
-        - [60.91883, -45.37517]
-        - [60.87, -45.468]
-        - [60.8385, -45.529]
-        - [60.756, -45.674]
-        - [60.703, -45.847]
-        - [60.6885, -46.147]
-        - [60.6325, -46.262]
+  - name: "EKAS Fjord"
+    station_prefix: "O"
+    track:
+    # [[lat, lon], ...] — run --extract-tracks to fill
+    - [ 61.2946, -45.811615 ]
+    - [ 61.201175, -45.900879 ]
+    - [ 61.17386, -45.84114 ]
+    - [ 61.091828, -45.807495 ]
+    - [ 61.000749, -46.071854 ]
+    - [ 60.932100, -46.317673 ]
+    - [ 60.85867, -46.60533 ]
+    - [ 60.7815, -46.83475 ]
+    - [ 60.70667, -47.10167 ]
+    - [ 60.525, -47.614 ]
+  - name: "Igaliku Fjord"
+    station_prefix: "L"
+    track:
+    - [ 60.91883, -45.37517 ]
+    - [ 60.87, -45.468 ]
+    - [ 60.8385, -45.529 ]
+    - [ 60.756, -45.674 ]
+    - [ 60.703, -45.847 ]
+    - [ 60.6885, -46.147 ]
+    - [ 60.66, -46.23 ]
+    - [ 60.5923, -46.306 ]

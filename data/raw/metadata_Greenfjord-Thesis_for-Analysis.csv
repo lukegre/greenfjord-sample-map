@@ -1,0 +1,133 @@
+﻿Sample_Name,Sample_ID,Sample_Type,Sample_Subtype,Fjord_Glacier_Type,Latitude,Longitude,Date,Time,Year,ppm,pH,Temperature_[°C],Conductivity_[mS],Sampling_duration_[h],Volume_sampled_[mL],Elevation_[m],Filter_type,Researcher,Notes
+S01 dil100,GF23_NA_s_1,soil,High_Top,NA,60.98054498,-45.97662801,18.08.23,15:35:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S02 dil100,GF23_NA_s_2,soil,High_Mid,NA,60.98054498,-45.97662801,18.08.23,15:35:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S03 dil100,GF23_NA_s_3,soil,High_Bot,NA,60.98054498,-45.97662801,18.08.23,15:35:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S04 dil100,GF23_NA_s_4,soil,High_Top,NA,60.980173,-45.97691702,18.08.23,16:15:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S05 dil100,GF23_NA_s_5,soil,High_Mid,NA,60.980173,-45.97691702,18.08.23,16:15:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S06,GF23_NA_s_6,soil,High_Bot,NA,60.980173,-45.97691702,18.08.23,16:15:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S07,GF23_NA_s_7,soil,High_Top,NA,60.98028397,-45.97794003,18.08.23,16:38:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S08,GF23_NA_s_8,soil,High_Mid,NA,60.98028397,-45.97794003,18.08.23,16:38:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S09,GF23_NA_s_9,soil,High_Bot,NA,60.98028397,-45.97794003,18.08.23,16:38:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S10 dil100,GF23_NA_s_10,soil,Low_Top,NA,60.95552199,-46.01960597,19.08.23,17:16:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S11,GF23_NA_s_11,soil,Low_Mid,NA,60.95552199,-46.01960597,19.08.23,17:16:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S12,GF23_NA_s_12,soil,Low_Bot,NA,60.95552199,-46.01960597,19.08.23,17:16:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S13,GF23_NA_s_13,soil,Low_Top,NA,60.95495,-46.02134999,19.08.23,17:57:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S14,GF23_NA_s_14,soil,Low_Mid,NA,60.95495,-46.02134999,19.08.23,17:57:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S15,GF23_NA_s_15,soil,Low_Bot,NA,60.95495,-46.02134999,19.08.23,17:57:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S16,GF23_NA_s_16,soil,Low_Top,NA,60.95408097,-46.022631,19.08.23,18:35:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S17,GF23_NA_s_17,soil,Low_Mid,NA,60.95408097,-46.022631,19.08.23,18:35:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+S18,GF23_NA_s_18,soil,Low_Bot,NA,60.95408097,-46.022631,19.08.23,18:35:00,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S19,GF23_IG_s_19,soil,NA,NA,NA,NA,NA,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S20,GF23_IG_s_20,soil,NA,land,60.97159167,-45.05221944,28.05.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S21,GF23_IG_s_21,soil,NA,land,61.00504,-45.40731,03.06.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S22,GF23_IG_s_22,soil,NA,land,60.90886111,-45.23655833,31.05.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S23,GF23_IG_s_23,soil,NA,land,60.90906111,-45.23541389,31.05.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S24,GF23_IG_s_24,soil,NA,land,61.02178333,-45.38401389,05.06.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S25,GF23_IG_s_25,soil,NA,land,60.90985,-45.23406389,31.05.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Lisa Bröder,NA
+S26,GF22_IG_s_26,soil,NA,land,61.022179,-45.403349,26.08.22,NA,2022,NA,NA,NA,NA,NA,NA,NA,NA,Virginie Marques,not really soil - coarse around river
+S27,GF22_IG_s_27,soil,NA,land,61.004194,-45.4087,26.08.22,NA,2022,NA,NA,NA,NA,NA,NA,NA,NA,Virginie Marques,NA
+S28,GF22_IG_s_28,soil,NA,land,60.911623,-45.243968,27.08.22,NA,2022,NA,NA,NA,NA,NA,NA,NA,NA,Virginie Marques,"rocks only around river, further away for soil. No cross shape and varying elevation (no flat)"
+S29 dil100,GF22_IG_s_29,soil,NA,land,60.909381,-45.256115,27.08.22,NA,2022,NA,NA,NA,NA,NA,NA,NA,NA,Virginie Marques,NA
+S30,GF22_IG_s_30,soil,NA,land,61.19715,-45.337383,30.08.22,NA,2022,NA,NA,NA,NA,NA,NA,NA,NA,Virginie Marques,NA
+Ext Ctrl 1 S,GF_EXTNTC_Soil,control,extraction,NA,NA,NA,03.10.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+C-PCR-soil-1,GF_PCRNTC_Soil_1,control,PCR,NA,NA,NA,09.11.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+C-PCR-soil-2,GF_PCRNTC_Soil_2,control,PCR,NA,NA,NA,17.11.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+IG11,GF23_IG_fw_24,freshwater,NA,land,60.97707,-45.0503,28.05.23,NA,2023,NA,NA,2,NA,NA,NA,107,Sterivex 0.22µm,Lisa Bröder,WTW sonde not working  - oven thermometer used -check elevation
+IG12,GF23_IG_fw_25,freshwater,NA,land,60.97012,-45.05546,28.05.23,NA,2023,NA,NA,2,NA,NA,90,45,Sterivex 0.22µm,Lisa Bröder,WTW sonde not working  - oven thermometer used -check elevation
+IG13,GF23_IG_fw_26,freshwater,stream,land,60.89156,-45.27063,29.05.23,NA,2023,NA,7.5,8.1,4.89,NA,500,-5,Sterivex 0.22µm,Lisa Bröder,non-glacial river at sheep farm
+IG14,GF23_IG_fw_27,freshwater,pool,land,61.0219,-45.38297,05.06.23,NA,2023,NA,7.45,8.3,3.1,NA,1000,57,Sterivex 0.22µm,Lisa Bröder,"upstream lake 90, biggest inflow, downstream confluence from two valleys"
+Lc,FILTERNTC,control,field,NA,NA,NA,02.10.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+C-PCR-Fw,GF_PCRNTC_Freshwater,control,PCR,NA,NA,NA,13.11.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+C-PCR-Mw,GF_PCRNTC_Marinewater,control,PCR,NA,NA,NA,20.11.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+Fw01,GF23_QS_fw_1,freshwater,stream,ocean,61.31025,-45.69255,09.08.23,15:00:00,2023,26,7.4,10.7,0.02,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,"Pressure, conductivity, T measured constantly by Andreas. Samples taken for Lisa (Chemistry, water isotopes, DOC, DO2,...)."
+Fw02,GF23_QS_fw_2,freshwater,pool,ocean,61.32149,-45.7406,11.08.23,11:50:00,2023,21,6.8,16.5,0,NA,1000,514,Sterivex 0.22µm,Enrico van der Loo,"pool on top of the hill close to camp and next to the glacier. No inflow, no outflow, most likely snow and rainfed. Flies, water skippers, algae. Sampled around the pool many different points 50mL taken."
+Fw03,GF23_QS_fw_3,freshwater,stream,ocean,61.34031,-45.75014,11.08.23,13:25:00,2023,10,7.5,14.2,0,NA,1000,126,Sterivex 0.22µm,Enrico van der Loo,Big stream going into/under glacier
+Fw04,GF23_QS_fw_4,freshwater,pool,ocean,61.33598,-45.73868,11.08.23,16:05:00,2023,11,7.4,17.2,0,NA,850,189,Sterivex 0.22µm,Enrico van der Loo,"Small lake, lots of algae-like particles"
+Fw05,GF23_QS_fw_5,freshwater,pool,ocean,61.31108,-45.70346,12.08.23,11:17:00,2023,21,6.4,11,0.02,NA,50,12,Sterivex 0.22µm,Enrico van der Loo,Marsh pool next to camp
+Fw06,GF23_QS_fw_6,freshwater,pool,ocean,61.31013,-45.70799,12.08.23,11:44:00,2023,42,7.1,12.3,0.05,NA,200,10,Sterivex 0.22µm,Enrico van der Loo,"Pool next to marine bay. Was told that sometimes fjord water comes in due to waves. End of marsh and a small stream. (disconnected from main stream in valley). Same altitude as fjord, so should be 0m."
+Fw07,GF23_QS_fw_7,freshwater,pool,ocean,61.28094,-45.77913,13.08.23,11:30:00,2023,2,7.1,17.2,0,NA,1000,474,Sterivex 0.22µm,Enrico van der Loo,"Small lake by mountain campsite facing glacier front where radar (and other instruments) was installed. Used for drinking water (human hand dipping in). Clear water, flies, water skippers."
+Fw08,GF23_QS_fw_8,freshwater,stream,ocean,61.28417,-45.76266,13.08.23,14:39:00,2023,17,7.3,15.7,0.01,NA,1000,448,Sterivex 0.22µm,Enrico van der Loo,"River flowing out of small pool into fjord, close to Mountain camp."
+Fw09,GF23_QS_fw_9,freshwater,stream,ocean,61.29492,-45.75122,13.08.23,16:02:00,2023,30,7.6,7.6,0.03,NA,1000,33,Sterivex 0.22µm,Enrico van der Loo,"Steep stream next to Fw8 stream going into fjord, closer to base camp. 2 sheep passed by above us while we were sampling."
+Fw10,GF23_QS_fw_10,freshwater,stream,ocean,61.31311,-45.71067,15.08.23,09:55:00,2023,24,7.2,8.2,0.02,NA,1000,11,Sterivex 0.22µm,Enrico van der Loo,"Fw11a or Fw10. Small stream flowing into bay next to camp glacier side. Fish, pigeon"
+Fw11a,GF23_NA_fw_17,freshwater,stream,NA,60.979072,-45.974997,17.08.23,14:30:00,2023,22,7.2,7.9,0.02,NA,800,NA,Sterivex 0.22µm,Enrico van der Loo,"Fw11a or Fw10. Believe to be Mislabeled Fw10 in Metadata, but labeled 11 on sample (11a) Main stream in Narsaq Valley. Close to where we probed soil in the upper part (close to glacier)."
+Fw11b,GF23_NA_fw_11,freshwater,stream,NA,60.953326,-46.020295,19.08.23,14:55:00,2023,59,7,14.6,0.07,NA,1000,NA,Sterivex 0.22µm,Enrico van der Loo,11b. Small stream close to lower soil plots (close to farm). Easy to filter. Groundfiltering of stream? Cow prints and poop.
+Fw12,GF23_NA_fw_12,freshwater,stream,NA,60.9524024,-46.0168573,19.08.23,15:25:00,2023,37,7.3,10.8,0.04,NA,1000,NA,Sterivex 0.22µm,Enrico van der Loo,Main stream in Narsaq Valley. Close to lower soil plots (close to farm). Easy to filter. Before farm fence. After 2 merging streams: Main one + one from Westside. Fw11 doesn't merge into Fw 12 upstream.
+Fw13,GF23_NA_fw_13,freshwater,stream,NA,60.9484755,-46.0137751,19.08.23,16:05:00,2023,34,7.3,11.4,0.04,NA,1000,NA,Sterivex 0.22µm,Enrico van der Loo,Big stream coming between mountains on the East side of the Valley and later joins the main stream. Smaller than the main stream. Easy to filter.
+Fw14,GF23_NA_fw_14,freshwater,pool,NA,60.973621,-46.009149,20.08.23,11:28:00,2023,19,7.4,15.6,0.01,NA,1000,NA,Sterivex 0.22µm,Enrico van der Loo,"Big lake above the closed uranium mine. Top of mountain west side of Narsaq valley. Aquatic insects (red-pink, see picture) on filter. Lake doesn't seem to flow out."
+Fw15,GF23_NA_fw_15,freshwater,pool,NA,60.968019,-46.010341,20.08.23,12:04:00,2023,18,7.7,14.2,0.01,NA,1000,NA,Sterivex 0.22µm,Enrico van der Loo,Small lake close to Fw14. Top of mountain west side of Narsaq valley. Doesn't seem to flow out.
+Fw16,GF23_NA_fw_16,freshwater,pool,NA,60.962168,-46.033973,20.08.23,14:25:00,2023,10,7.8,17.9,0,NA,1000,NA,Sterivex 0.22µm,Enrico van der Loo,"Lake top of mountain west side of Narsaq valley. Small stream flowing out. Aquatic insects on filter (red-pink, see picture)."
+Ext Ctrl 2 Fw,GF_EXTNTC_Freshwater,control,extraction,NA,NA,NA,,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+NU1,GF23_NU_fw_18,freshwater,stream,land,61.20433,-45.32951,07.06.23,NA,2023,NA,7.7,13.6,3.82,NA,150,14,Sterivex 0.22µm,Lisa Bröder,"glacial outflow close by Narsarsuaq, very shallow, hot day -> temp"
+NU2,GF23_NU_fw_19,freshwater,stream,land,61.17086,-45.41512,08.06.23,NA,2023,NA,7.844,4.2,11.63,NA,100,5,Sterivex 0.22µm,Lisa Bröder,"glacial river close to Narsarsuaq airport, tidal zone (rising water level while sampling)"
+IG01,GF23_IG_fw_20,freshwater,stream,land,61.02049,-45.40091,03.06.23,NA,2023,NA,7.5,6.4,3.02,NA,700,43,Sterivex 0.22µm,Lisa Bröder,non-glacial river at lake 90 near Igaliku (same as GF22-IG1)
+IG03,GF23_IG_fw_21,freshwater,stream,land,61.00399,-45.40826,03.06.23,NA,2023,NA,7.44,6.8,3.08,NA,700,8,Sterivex 0.22µm,Lisa Bröder,non-glacial river downstream lake 90 near Igaliku (same as GF22-IG3)
+IG07A,GF23_IG_fw_22,freshwater,stream,land,60.9099,-45.23534,29.05.23,NA,2023,NA,7.6,6,4.01,NA,100,18,Sterivex 0.22µm,Lisa Bröder,"glacial river, southern bank (corresponding to GF22-IG7 on Northern bank) -check temperature"
+IG08A,GF23_IG_fw_23,freshwater,stream,land,60.90959,-45.23898,30.05.23,NA,2023,NA,7.47,3.6,3.62,NA,100,1,Sterivex 0.22µm,Lisa Bröder,"glacial river downstream waterfall (soutern bank, corresponding to GF22-IG8 on Northern bank)"
+A01,GF23_NA_a_1,air,NA,NA,60.9158,-46.05335,25.06.23,11:10:00,2023,NA,NA,NA,NA,25.17,NA,18,Quartz Fiber 90mm,Julia/Kalliopi,"Filter sampler installed outside NIRS, attached to the roof by the entrance stairs, sampler location constant throughout campaign"
+A02,GF23_NA_a_2,air,NA,NA,60.9158,-46.05335,26.06.23,12:37:00,2023,NA,NA,NA,NA,44.47,NA,18,Quartz Fiber 90mm,Benji,NA
+A03,GF23_NA_a_3,control,field,NA,60.9158,-46.05335,28.06.23,09:12:00,2023,NA,NA,NA,NA,0.02,NA,18,Quartz Fiber 90mm,Benji,Field blank
+A04,GF23_NA_a_4,air,NA,NA,60.9158,-46.05335,28.06.23,09:19:00,2023,NA,NA,NA,NA,50.35,NA,18,Quartz Fiber 90mm,Benji,NA
+A05,GF23_NA_a_5,air,NA,NA,60.9158,-46.05335,29.06.23,11:48:00,2023,NA,NA,NA,NA,71.95,NA,18,Quartz Fiber 90mm,Benji/Nora,NA
+A06,GF23_NA_a_6,air,NA,NA,60.9158,-46.05335,02.07.23,12:00:00,2023,NA,NA,NA,NA,47.63,NA,18,Quartz Fiber 90mm,Nora,NA
+A07,GF23_NA_a_7,air,NA,NA,60.9158,-46.05335,04.07.23,11:51:00,2023,NA,NA,NA,NA,46.93,NA,18,Quartz Fiber 90mm,Nora,This could have been sampling for less than 2 days because the pump was not working when I got the filter --> spare pump is now used. 
+A08,GF23_NA_a_8,control,field,NA,60.9158,-46.05335,06.07.23,10:58:00,2023,NA,NA,NA,NA,0,NA,18,Quartz Fiber 90mm,Benji,Field blank
+A09,GF23_NA_a_9,control,field,NA,60.9158,-46.05335,06.07.23,11:15:00,2023,NA,NA,NA,NA,0,NA,18,Quartz Fiber 90mm,Benji,Field blank. Had to do a second blank because the pump didn't work so I used the spared pump with a new filter
+A10,GF23_NA_a_10,air,NA,NA,60.9158,-46.05335,06.07.23,11:23:00,2023,NA,NA,NA,NA,46.25,NA,18,Quartz Fiber 90mm,Benji,NA
+A11,GF23_NA_a_11,air,NA,NA,60.9158,-46.05335,08.07.23,09:48:00,2023,NA,NA,NA,NA,49.37,NA,18,Quartz Fiber 90mm,Benji/Nora,NA
+A12,GF23_NA_a_12,air,NA,NA,60.9158,-46.05335,10.07.23,11:23:00,2023,NA,NA,NA,NA,46.28,NA,18,Quartz Fiber 90mm,Nora,NA
+A13,GF23_NA_a_13,air,NA,NA,60.9158,-46.05335,12.07.23,09:55:00,2023,NA,NA,NA,NA,49.75,NA,18,Quartz Fiber 90mm,Lionel,NA
+A14,GF23_NA_a_14,air,NA,NA,60.9158,-46.05335,14.07.23,11:50:00,2023,NA,NA,NA,NA,48.52,NA,18,Quartz Fiber 90mm,Lionel,NA
+A15,GF23_NA_a_15,air,NA,NA,60.9158,-46.05335,16.07.23,12:40:00,2023,NA,NA,NA,NA,46.5,NA,18,Quartz Fiber 90mm,Julian,NA
+A16,GF23_NA_a_16,air,NA,NA,60.9158,-46.05335,18.07.23,11:22:00,2023,NA,NA,NA,NA,50.02,NA,18,Quartz Fiber 90mm,Julian,NA
+A17,GF23_NA_a_17,control,field,NA,60.9158,-46.05335,18.07.23,13:42:00,2023,NA,NA,NA,NA,48,NA,18,Quartz Fiber 90mm,Julian,Field blank
+A18,GF23_NA_a_18,air,NA,NA,60.9158,-46.05335,20.07.23,13:53:00,2023,NA,NA,NA,NA,44,NA,18,Quartz Fiber 90mm,Julian,NA
+A19,GF23_NA_a_19,control,field,NA,60.9158,-46.05335,22.07.23,10:07:00,2023,NA,NA,NA,NA,0,NA,18,Quartz Fiber 90mm,Julian,Field blank
+A20,GF23_NA_a_20,air,NA,NA,60.9158,-46.05335,22.07.23,10:13:00,2023,NA,NA,NA,NA,55,NA,18,Quartz Fiber 90mm,Julian,NA
+A21,GF23_NA_a_21,air,NA,NA,60.9158,-46.05335,24.07.23,17:23:00,2023,NA,NA,NA,NA,45.53,NA,18,Quartz Fiber 90mm,Julian,NA
+A22,GF23_NA_a_22,air,NA,NA,60.9158,-46.05335,26.07.23,15:04:00,2023,NA,NA,NA,NA,42.33,NA,18,Quartz Fiber 90mm,Lionel,NA
+A23,GF23_NA_a_23,air,NA,NA,60.9158,-46.05335,28.07.23,09:35:00,2023,NA,NA,NA,NA,52.88,NA,18,Quartz Fiber 90mm,Julian,NA
+A24,GF23_NA_a_24,control,field,NA,60.9158,-46.05335,30.07.23,14:35:00,2023,NA,NA,NA,NA,0,NA,18,Quartz Fiber 90mm,Julian,Field blank
+A25,GF23_NA_a_25,air,NA,NA,60.9158,-46.05335,30.07.23,14:42:00,2023,NA,NA,NA,NA,47.68,NA,18,Quartz Fiber 90mm,Julian,NA
+A26,GF23_NA_a_26,air,NA,NA,60.9158,-46.05335,01.08.23,14:32:00,2023,NA,NA,NA,NA,47.85,NA,18,Quartz Fiber 90mm,Julian,NA
+A27,GF22_NA_a_1,air,NA,NA,60.915724,-46.053264,21.08.22,19:41,2022,NA,NA,NA,NA,23,3220000,NA,HEPA,Virginie Marques,NA
+A28,GF22_NA_a_2,air,NA,NA,60.915724,-46.053264,22.08.22,18:30,2022,NA,NA,NA,NA,24,3360000,NA,HEPA,Virginie Marques,NA
+A29,GF22_NA_a_3,air,NA,NA,60.915724,-46.053264,23.08.22,18:30,2022,NA,NA,NA,NA,25,3500000,NA,HEPA,Virginie Marques,NA
+A30,GF22_NA_a_4,air,NA,NA,60.915724,-46.053264,24.08.22,19:45,2022,NA,NA,NA,NA,22,3080000,NA,HEPA,Virginie Marques,NA
+A31,GF22_NA_a_5,air,NA,NA,60.915724,-46.053264,25.08.22,17:30,2022,NA,NA,NA,NA,25,3500000,NA,HEPA,Virginie Marques,NA
+A32,GF22_NA_a_6,air,NA,NA,60.915724,-46.053264,26.08.22,18:30,2022,NA,NA,NA,NA,48,6720000,NA,HEPA,Virginie Marques,NA
+Ext Ctrl 5 A,GF_EXTNTC_Air,control,extraction,NA,NA,NA,11.10.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+C-PCR-A,GF_PCRNTC_Air,control,PCR,NA,NA,NA,14.11.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+gl2 top,GF23_JB_i_17,ice,top,land,61.01201007,-44.98791202,28.05.23,NA,2023,NA,NA,NA,NA,NA,208,,Sterivex 0.22µm,Lisa Bröder,syringe filtered (Sterivex) on 20230531
+gl2 bot,GF23_JB_i_18,ice,bot,land,61.01201007,-44.98791202,28.05.23,NA,2023,NA,NA,NA,NA,NA,494,,Sterivex 0.22µm,Lisa Bröder,syringe filtered (Sterivex) on 20230531
+gl3 top,GF23_JB_i_19,ice,top,land,61.01201387,-44.98791227,28.05.23,NA,2023,NA,NA,NA,NA,NA,200,,Sterivex 0.22µm,Lisa Bröder,syringe filtered (Sterivex) on 20230531. Coordinates for glacier 3 guessed by Armin
+gl3 bot,GF23_JB_i_20,ice,bot,land,61.01201387,-44.98791227,28.05.23,NA,2023,NA,NA,NA,NA,NA,NA,,Sterivex 0.22µm,Lisa Bröder,syringe filtered (Sterivex) on 20230531. Coordinates for glacier 3 guessed by Armin
+Ext Ctrl 4 I,GF_EXTNTC_Ice,control,extraction,NA,NA,NA,10.10.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+C-PCR-I,GF_PCRNTC_Ice,control,PCR,NA,NA,NA,20.11.23,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA
+I01,GF23_QS_i_1,ice,top,ocean,61.31299,-45.75347,10.08.23,12:00:00,2023,NA,NA,NA,NA,NA,370,62,Sterivex 0.22µm,Enrico van der Loo,"Top 15cm of ice. Filter without Luer lock. Issues with closing and lots of buffer leaked out, so I added from a spare buffer syringe. Side of glacier with lots of black/gray sediment."
+I02,GF23_QS_i_2,ice,bot,ocean,61.31299,-45.75347,10.08.23,12:00:00,2023,NA,NA,NA,NA,NA,356,62,Sterivex 0.22µm,Enrico van der Loo,"Bottom 15cm of ice. Filter without Luer lock. Issues with closing and lots of buffer leaked out, so I added from a spare buffer syringe. Side of glacier with lots of black/gray sediment."
+I03,GF23_QS_i_3,ice,top,ocean,61.33865,-45.75182,11.08.23,14:05:00,2023,NA,NA,NA,NA,NA,94,126,Sterivex 0.22µm,Enrico van der Loo,Top 15cm. On the edge of the glacier. Sterivex filter used. Lots of water seeped out of the box. Black sediment
+I04,GF23_QS_i_4,ice,bot,ocean,61.33865,-45.75182,11.08.23,14:05:00,2023,NA,NA,NA,NA,NA,380,126,Sterivex 0.22µm,Enrico van der Loo,Bot 15cm. On the edge of the glacier. Sterivex filter used.
+I05,GF23_QS_i_5,ice,top,ocean,61.33865,-45.75182,11.08.23,14:05:00,2023,NA,NA,NA,NA,NA,285,126,Sweenex,Enrico van der Loo,Top 15cm. On the edge of the glacier. Sweenex filter used. Black sediment. To compare with I4 (taken right next to it)
+I06,GF23_QS_i_6,ice,bot,ocean,61.33865,-45.75182,11.08.23,14:05:00,2023,NA,NA,NA,NA,NA,156,126,Sweenex,Enrico van der Loo,Bot 15cm. On the edge of the glacier. Sweenex filter used. Water seeped out of the box. To compare with I4 (taken right next to it)
+I07,GF23_QS_i_7,ice,top,ocean,61.33886,-45.75156,11.08.23,14:15:00,2023,NA,NA,NA,NA,NA,277,137,Sweenex,Enrico van der Loo,"Top 15cm. On the edge of the glacier. Sweenex filter used, very easy to filter. Black sediment. A bit higher than other 2 ice cores (I3-6)"
+I08,GF23_QS_i_8,ice,bot,ocean,61.33886,-45.75156,11.08.23,14:15:00,2023,NA,NA,NA,NA,NA,341,137,Sweenex,Enrico van der Loo,"Bot 15cm. On the edge of the glacier. Sweenex filter used, very easy to filter. A bit higher than other 2 ice cores (I3-6)"
+I09,GF23_QS_i_9,ice,deep,ocean,61.33865,-45.75182,11.08.23,14:35:00,2023,NA,NA,NA,NA,NA,412,126,Sweenex,Enrico van der Loo,"Deep ice, from 3.5-4m using long ice drill that was bleached and milliQed. Sweenex filter used, very easy to filter. Ice was slushy when coming out."
+I10,GF23_NB_i_10,ice,top,land,60.988674,-45.9168333,29.07.23,NA,2023,NA,NA,NA,NA,NA,340,940,Sterivex 0.22µm,Andreas Vieli,Top 15cm. On small mountain glacier. Sterivex filter used
+I11,GF23_NB_i_11,ice,bot,land,60.988674,-45.9168333,29.07.23,NA,2023,NA,NA,NA,NA,NA,190,940,Sterivex 0.22µm,Andreas Vieli,Bottom 15cm. On small mountain glacier. Sterivex filter used
+I12,GF23_NB_i_12,ice,top,land,60.986,-45.903,29.07.23,NA,2023,NA,NA,NA,NA,NA,290,1080,Sterivex 0.22µm,Andreas Vieli,Top 15cm. On small mountain glacier. Sterivex filter used
+I13,GF23_NB_i_13,ice,bot,land,60.986,-45.903,29.07.23,NA,2023,NA,NA,NA,NA,NA,310,1080,Sterivex 0.22µm,Andreas Vieli,Bottom 15cm. On small mountain glacier. Sterivex filter used
+IB1,GF23_QS_i_14,ice,iceberg,ocean,61.3085819,-45.819267,06.08.23,13:30:00,2023,NA,NA,NA,NA,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,Filter without Luer lock. Cleaned bucket and spade with Bleach and milliQ. Spade had a bit of rust on the edge. Left sample with box lid on top to melt until 22:12
+gl1 top,GF23_JB_i_15,ice,top,land,61.01201204,-44.98791004,28.05.23,NA,2023,NA,NA,NA,NA,NA,260,NA,Sterivex 0.22µm,Lisa Bröder,syringe filtered (Sterivex) on 20230531
+gl1 bot,GF23_JB_i_16,ice,bot,land,61.01201204,-44.98791004,28.05.23,NA,2023,NA,NA,NA,NA,NA,170,NA,Sterivex 0.22µm,Lisa Bröder,syringe filtered (Sterivex) on 20230531
+Mw01,GF23_QS_mw_1,marinewater,fjord,ocean,60.9637355,-46.1783129,04.08.23,12:30:00,2023,1,8.1,6.3,10.04,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,"CTD. First sample. Buckets on boat were quite dirty, even after bleaching. Lots of buffer came out."
+Mw02,GF23_QS_mw_2,marinewater,fjord,ocean,61.0629908,-45.8829681,04.08.23,15:30:00,2023,1,8.1,5.7,10.3,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,CTD
+Mw03,GF23_QS_mw_3,marinewater,fjord,ocean,61.186527,-45.8500819,04.08.23,17:25:00,2023,1,8.1,1.7,9.75,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,CTD. Many more ice bergs
+Mw04,GF23_QS_mw_4,marinewater,fjord,ocean,61.248009,-45.868745,04.08.23,18:35:00,2023,1,8.1,1.7,10.67,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,CTD. Many more ice bergs
+Mw05,GF23_QS_mw_5,marinewater,fjord,ocean,61.3090016,-45.8226654,05.08.23,13:00:00,2023,1,8.1,0.04,10.7,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,"CTD. Julia took a water sample. Filter without Luer lock, used glove amd tape to close. Edge of glacier on West side."
+Mw06,GF23_QS_mw_6,marinewater,fjord,ocean,61.307235,-45.807396,05.08.23,14:30:00,2023,1,8.1,0.04,10.58,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,CTD. Filter without Luer lock
+Mw07,GF23_QS_mw_7,marinewater,fjord,ocean,61.3046363,-45.7923406,05.08.23,16:20:00,2023,1,8.1,-0.03,10.74,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,"CTD. Filter without Luer lock. Lots of ice, ice sludge, used paddle to push down bucket into water."
+Mw08,GF23_QS_mw_8,marinewater,fjord,ocean,61.3028009,-45.7572168,05.08.23,17:00:00,2023,1,8.1,2.1,10.54,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,CTD. Filter without Luer lock
+Mw09,GF23_QS_mw_9,marinewater,fjord,ocean,61.304886,-45.783205,05.08.23,19:00:00,2023,1,8.1,0.5,10.54,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,"CTD. Filter without Luer lock. Lots of ice, ice sludge, used paddle to push down bucket into water."
+Mw10,GF23_QS_mw_10,marinewater,bay,ocean,61.30845,-45.70799,12.08.23,12:24:00,2023,1334,7.4,12.7,1.82,NA,1000,5,Sterivex 0.22µm,Enrico van der Loo,"Bay/delta. Marine water where river flows in. Same altitude as fjord, so should be 0m."
+Mw11,GF23_NA_mw_11,marinewater,bay,ocean,60.938602,-46.053686,20.08.23,16:50:00,2023,1,7.6,15.5,3.35,NA,1000,0,Sterivex 0.22µm,Enrico van der Loo,Bay Narsaq valley close to where stream comes in. Low tide.
+Ext Ctrl 3 Mw,GF_EXTNTC_Marinewater,control,extraction,NA,NA,NA,,NA,2023,NA,NA,NA,NA,NA,NA,NA,NA,Enrico van der Loo,NA

@@ -55,7 +55,14 @@ Python deps (managed via `uv`, in `pyproject.toml`): `pandas`, `numpy`,
 - **Atmospheric-sampling blob** — a radially-fading disc (configurable centre,
   radius, opacity, colour) rendered as an `L.circle` filled with an SVG radial
   gradient, sitting below the markers.
-- **Configurable glacier boxes, named towns, legend, north arrow, title.**
+- **Interactive legend** — each theme row expands (caret) to reveal its
+  sub-types with counts; clicking a theme or sub-type shows/hides those samples
+  on the map, the pie clusters recompute, and the parent theme count updates to
+  what is currently shown. Set `legend.interactive: false` for a static legend.
+- **Config-driven basemaps** — the tile layers in the switcher come from
+  `basemaps` (name / url / attribution / max_zoom / default).
+- **Configurable glacier boxes** (outline, weight, dash, fill, label styling),
+  **named towns, legend, north arrow, title.**
 
 ## What lives in `config.yml`
 
@@ -68,7 +75,10 @@ Python deps (managed via `uv`, in `pyproject.toml`): `pandas`, `numpy`,
 | `towns` | Which towns get a label + dot. |
 | `boxes` | Glacier highlight rectangles: `name`, `bounds`, `color`. |
 | `legend.position` | Legend placement: `anchor` (corner) + `x`/`y` px offsets from that corner. |
-| `filters.exclude_types` | Drop CSV `Type` sub-types per theme (`"*"` = all themes). Affects markers, pies, legend counts. |
+| `legend.interactive`, `legend.start_expanded` | Enable click-to-filter / expandable sub-types; whether themes start expanded. |
+| `basemaps` | Tile layers in the switcher: `name`, `url`, `attribution`, `max_zoom`, `default`. |
+| `box_defaults` + per-box style keys | Box outline `color`/`weight`/`dash_array`, `fill`/`fill_color`/`fill_opacity`, `label_color`/`label_size`. |
+| `filters.exclude_types` | Build-time drop of CSV `Type` sub-types per theme (`"*"` = all themes). Distinct from the runtime legend toggles. |
 | `atmosphere_blob` | `center`, `radius_km`, `opacity`, `color`. |
 | `cruise_lines` | `color`, `weight`, `opacity`, `bins`, and the `fjords` list (`name`, `station_prefix`, and the hand-editable `track` points). |
 
@@ -127,3 +137,6 @@ Edit these in `config.yml`: `towns`, `boxes`, `atmosphere_blob`, `view.bounds`
 - 2026-07-13 — Editable cruise `track` points in the YAML (+ `--extract-tracks`
   regenerator); configurable legend position (`legend.position`); per-theme
   sub-type filtering (`filters.exclude_types`); documented blob colour control.
+- 2026-07-13 — Interactive legend (expandable sub-types, click-to-filter,
+  live parent counts); box styling in the YAML (`box_defaults` + per-box keys);
+  config-driven `basemaps`.
