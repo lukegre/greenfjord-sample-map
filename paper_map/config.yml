@@ -15,6 +15,11 @@ legend:
   title: "Research theme"
   transect_label: "CTD transect"        # legend row for the cruise lines
   blob_label: "Atmospheric sampling"    # legend row for the fading blob
+  # Position of the legend box, in pixels measured from one corner of the map.
+  #   anchor: top-left | top-right | bottom-left | bottom-right
+  #   x     : horizontal distance from that corner (px)
+  #   y     : vertical distance from that corner (px)
+  position: {anchor: "bottom-left", x: 12, y: 12}
 
 # ---- Initial map view ------------------------------------------------
 # [[south, west], [north, east]]. All markers are still plotted; zooming
@@ -30,20 +35,43 @@ view:
 #   legend_icon  : Font Awesome (v6 solid) icon shown in the legend
 #   label        : display name in the legend
 themes:
-  Ocean:        {color: "#32507d", text_color: "#eef3f9", legend_icon: "ship",      label: "Ocean"}
-  Human:        {color: "#ef476f", text_color: "#ffffff", legend_icon: "user",      label: "Human"}
-  Cryosphere:   {color: "#5fb0d6", text_color: "#06303f", legend_icon: "snowflake", label: "Cryosphere"}
-  Atmosphere:   {color: "#e7cf4f", text_color: "#3d3300", legend_icon: "wind",      label: "Atmosphere"}
-  Land:         {color: "#fa9f42", text_color: "#3a2200", legend_icon: "droplet",   label: "Land"}
-  Biodiversity: {color: "#06d6a0", text_color: "#00382a", legend_icon: "fish",      label: "Biodiversity"}
+  Ocean: {color: "#32507d", text_color: "#eef3f9", legend_icon: "ship", label: "Ocean"}
+  Human: {color: "#ef476f", text_color: "#ffffff", legend_icon: "user", label: "Human"}
+  Cryosphere: {color: "#5fb0d6", text_color: "#06303f", legend_icon: "snowflake", label: "Cryosphere"}
+  Atmosphere: {color: "#e7cf4f", text_color: "#3d3300", legend_icon: "wind", label: "Atmosphere"}
+  Land: {color: "#fa9f42", text_color: "#3a2200", legend_icon: "droplet", label: "Land"}
+  Biodiversity: {color: "#06d6a0", text_color: "#00382a", legend_icon: "fish", label: "Biodiversity"}
+
+# ---- Filters ---------------------------------------------------------
+# Drop specific sample sub-types (the CSV "Type" column) before plotting.
+# Keys are research-theme names ("Cluster"); "*" applies to every theme.
+# Filtering affects the markers, pie clusters, legend counts, and (for the
+# Ocean theme) the auto-computed cruise tracks.
+# Available sub-types per theme:
+#   Ocean:        [CTD]
+#   Human:        [Guided tours, Interview, Observation, Photo, Semi-structured interview]
+#   Cryosphere:   [Ablation stakes, CTD, Camp, Instream pressure/temp, Interferometer,
+#                  Meteostation, Seismometer, Shellfrags, Tideguage pressure, Timelapse camera]
+#   Atmosphere:   [Dust, Kite, Water]
+#   Land:         [Ice, River mouth, Sediment, Water]
+#   Biodiversity: [Water]
+filters:
+  exclude_types:
+    "*": []             # e.g. ["Faulty location"] to drop everywhere
+    Ocean: []
+    Human: []
+    Cryosphere: []
+    Atmosphere: []
+    Land: []            # e.g. ["Sediment", "Ice"]
+    Biodiversity: []
 
 # ---- Named towns -----------------------------------------------------
 # Only the towns listed here get a label + dot on the map.
 towns:
   - {name: "Narsarsuaq", lat: 61.155, lon: -45.425}
-  - {name: "Narsaq",     lat: 60.913, lon: -46.048}
-  - {name: "Qaqortoq",   lat: 60.718, lon: -46.037}
-  - {name: "Igaliku",    lat: 60.990, lon: -45.424}
+  - {name: "Narsaq", lat: 60.913, lon: -46.048}
+  - {name: "Qaqortoq", lat: 60.718, lon: -46.037}
+  - {name: "Igaliku", lat: 60.990, lon: -45.424}
 
 # ---- Glacier context boxes -------------------------------------------
 # Highlight rectangles with a label. bounds: [[south, west], [north, east]].
@@ -61,17 +89,39 @@ atmosphere_blob:
   center: [60.913, -46.048]   # [lat, lon]
   radius_km: 12
   opacity: 0.55               # opacity at the centre (fades to 0 at the edge)
-  color: "#e7cf4f"
+  color: "#e7cf4f"            # blob colour (any CSS/hex colour)
 
 # ---- CTD cruise lines ------------------------------------------------
-# Marine CTD stations are aggregated by distance along each fjord's main
-# axis (into `bins` nodes) and connected with a line. Each fjord is defined
-# by the leading character of the CTD "Station ID".
+# Each fjord's line is drawn through its `track` points (below), which you can
+# edit by hand. To (re)generate the tracks from the CTD data, run:
+#     uv run python paper_map/build_map.py --extract-tracks
+# which aggregates the marine CTD stations by distance along each fjord's main
+# axis into `bins` nodes and writes the resulting points back here. A fjord is
+# assigned its stations by the leading character of the CTD "Station ID".
 cruise_lines:
-  bins: 9                     # number of distance-aggregated nodes per fjord
+  bins: 9                     # nodes per fjord when regenerating with --extract-tracks
   color: "#22375f"
   weight: 3
   opacity: 0.9
   fjords:
-    - {name: "EKAS Fjord",    station_prefix: "O"}
-    - {name: "Igaliku Fjord", station_prefix: "L"}
+    - name: "EKAS Fjord"
+      station_prefix: "O"
+      track:                  # [[lat, lon], ...] — run --extract-tracks to fill
+        - [61.17386, -45.84114]
+        - [61.01725, -46.0005]
+        - [60.98017, -46.2365]
+        - [60.96691, -46.58591]
+        - [60.85867, -46.60533]
+        - [60.7815, -46.83475]
+        - [60.70667, -47.10167]
+        - [60.525, -47.614]
+    - name: "Igaliku Fjord"
+      station_prefix: "L"
+      track:
+        - [60.91883, -45.37517]
+        - [60.87, -45.468]
+        - [60.8385, -45.529]
+        - [60.756, -45.674]
+        - [60.703, -45.847]
+        - [60.6885, -46.147]
+        - [60.6325, -46.262]

@@ -27,13 +27,16 @@ Files in this folder:
 ```bash
 uv run python paper_map/build_map.py
 # options: --csv <path>  --config <path>  --out <path>
+
+# (re)generate the editable cruise-track points in config.yml from the CTD data:
+uv run python paper_map/build_map.py --extract-tracks
 ```
 
 Then open `paper_map/greenfjord_sample_map.html` in any browser (needs an
 internet connection for the map tiles + JS/icon CDNs).
 
 Python deps (managed via `uv`, in `pyproject.toml`): `pandas`, `numpy`,
-`pyyaml`.
+`pyyaml`, `ruamel.yaml` (round-trip YAML writing for `--extract-tracks`).
 
 ## Features
 
@@ -64,8 +67,10 @@ Python deps (managed via `uv`, in `pyproject.toml`): `pandas`, `numpy`,
 | `themes.<Cluster>` | Default icon `color`, `text_color`, `legend_icon`, `label` per research theme; order sets legend + pie-segment order. |
 | `towns` | Which towns get a label + dot. |
 | `boxes` | Glacier highlight rectangles: `name`, `bounds`, `color`. |
+| `legend.position` | Legend placement: `anchor` (corner) + `x`/`y` px offsets from that corner. |
+| `filters.exclude_types` | Drop CSV `Type` sub-types per theme (`"*"` = all themes). Affects markers, pies, legend counts. |
 | `atmosphere_blob` | `center`, `radius_km`, `opacity`, `color`. |
-| `cruise_lines` | `bins`, `color`, `weight`, `opacity`, and the `fjords` list (`name` + `station_prefix`). |
+| `cruise_lines` | `color`, `weight`, `opacity`, `bins`, and the `fjords` list (`name`, `station_prefix`, and the hand-editable `track` points). |
 
 ## Design decisions
 
@@ -81,15 +86,20 @@ Python deps (managed via `uv`, in `pyproject.toml`): `pandas`, `numpy`,
 - **Standalone:** shares no code with `src/sample_loc_map/` (the folium /
   Google-Sheets project), as requested.
 
+## Cruise tracks
+
+Each fjord's line is drawn through the `track: [[lat, lon], ...]` points held
+in `config.yml` — **edit these by hand** to reshape a line. To regenerate them
+from the CTD data, run `--extract-tracks`: it splits stations by `Station ID`
+prefix, aggregates each fjord by distance along its principal axis into `bins`
+nodes, and writes the points back (comments preserved via ruamel round-trip).
+`Location == "Faulty location"` casts are dropped. If a fjord's `track` is empty
+the map falls back to computing it on the fly at build time.
+
 ## Approximate / author-supplied (not in the CSV)
 
-Edit these in `config.yml`:
-
-- `towns`, `boxes`, `atmosphere_blob`, `view.bounds` — hand-placed.
-- Cruise-line aggregation is derived from the CTD data, but the **fjord
-  assignment** (which `Station ID` prefix belongs to which fjord) and the
-  number of `bins` are config choices. `Location == "Faulty location"` casts
-  are dropped.
+Edit these in `config.yml`: `towns`, `boxes`, `atmosphere_blob`, `view.bounds`
+(all hand-placed), and the cruise `track` points / fjord assignment.
 
 ## Known quirks / gotchas
 
@@ -114,3 +124,6 @@ Edit these in `config.yml`:
 - 2026-07-13 — Config-driven rewrite: all author-editable values moved to
   `config.yml`; added pie/donut cluster aggregation, distance-aggregated CTD
   cruise lines per fjord, and the configurable atmospheric-sampling blob.
+- 2026-07-13 — Editable cruise `track` points in the YAML (+ `--extract-tracks`
+  regenerator); configurable legend position (`legend.position`); per-theme
+  sub-type filtering (`filters.exclude_types`); documented blob colour control.

@@ -41,6 +41,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
+from ruamel.yaml import YAML
 
 # --------------------------------------------------------------------------
 # Paths
@@ -79,6 +80,27 @@ def load_samples(csv_path: Path) -> pd.DataFrame:
         df[col] = df[col].fillna("").astype(str).str.strip()
 
     return df
+
+
+def apply_filters(df: pd.DataFrame, filters: dict) -> pd.DataFrame:
+    """Drop samples whose CSV ``Type`` is excluded for their theme.
+
+    ``filters['exclude_types']`` maps a theme name (or ``"*"`` for all themes)
+    to a list of ``Type`` values to remove.
+    """
+    exclude = (filters or {}).get("exclude_types", {}) or {}
+    if not exclude:
+        return df
+
+    global_ex = {str(t) for t in exclude.get("*", []) or []}
+    drop = pd.Series(False, index=df.index)
+    for theme, types in exclude.items():
+        wanted = global_ex if theme == "*" else {str(t) for t in (types or [])}
+        if theme == "*":
+            drop |= df["Type"].isin(wanted)
+        else:
+            drop |= (df["Cluster"] == theme) & df["Type"].isin(wanted)
+    return df[~drop].copy()
 
 
 # --------------------------------------------------------------------------
@@ -169,24 +191,67 @@ def aggregate_transect(points: np.ndarray, n_bins: int) -> list[list[float]]:
     return nodes
 
 
-def build_cruise_lines(df: pd.DataFrame, cfg: dict) -> list[dict]:
-    """Build one aggregated cruise line per configured fjord."""
+def aggregate_fjord_track(df: pd.DataFrame, prefix: str, n_bins: int):
+    """Aggregate the CTD stations of one fjord into ordered track nodes."""
     ocean = df[df["Cluster"] == "Ocean"].copy()
-    # Drop obviously bad fixes.
-    ocean = ocean[ocean["Location"].str.lower() != "faulty location"]
+    ocean = ocean[ocean["Location"].str.lower() != "faulty location"]  # drop bad fixes
+    sub = ocean[ocean["Station ID"].str.upper().str.startswith(prefix.upper())]
+    if len(sub) < 2:
+        return [], int(len(sub))
+    pts = sub[["Lat", "Lon"]].to_numpy(dtype=float)
+    return aggregate_transect(pts, n_bins), int(len(sub))
 
+
+def build_cruise_lines(df: pd.DataFrame, cfg: dict) -> list[dict]:
+    """One cruise line per configured fjord.
+
+    Uses the hand-editable ``track`` points from the config if present;
+    otherwise falls back to aggregating the CTD stations on the fly (so the map
+    still renders before ``--extract-tracks`` has been run).
+    """
     n_bins = int(cfg.get("bins", 9))
     lines = []
     for fj in cfg.get("fjords", []):
-        prefix = str(fj["station_prefix"]).upper()
-        sub = ocean[ocean["Station ID"].str.upper().str.startswith(prefix)]
-        if len(sub) < 2:
+        track = fj.get("track") or []
+        if track:
+            coords = [[float(p[0]), float(p[1])] for p in track]
+            source = "config"
+        else:
+            coords, _ = aggregate_fjord_track(df, str(fj.get("station_prefix", "")), n_bins)
+            source = "auto"
+        if len(coords) < 2:
             continue
-        pts = sub[["Lat", "Lon"]].to_numpy(dtype=float)
-        nodes = aggregate_transect(pts, n_bins)
-        lines.append({"name": fj.get("name", prefix), "coords": nodes,
-                      "n_stations": int(len(sub))})
+        lines.append({"name": fj.get("name", ""), "coords": coords, "source": source})
     return lines
+
+
+def extract_tracks_to_config(df: pd.DataFrame, config_path: Path) -> None:
+    """Recompute each fjord's track from the CTD data and write the points back
+    into ``config.yml`` (comments preserved via ruamel round-trip)."""
+    from ruamel.yaml.comments import CommentedSeq
+
+    def flow_point(lat, lon):
+        pt = CommentedSeq([round(lat, 5), round(lon, 5)])
+        pt.fa.set_flow_style()  # render as "[lat, lon]" on one line
+        return pt
+
+    yaml_rt = YAML()
+    yaml_rt.preserve_quotes = True
+    yaml_rt.width = 4096  # don't wrap flow-style maps (themes/towns/boxes)
+    yaml_rt.indent(mapping=2, sequence=4, offset=2)
+    with config_path.open(encoding="utf-8") as fh:
+        doc = yaml_rt.load(fh)
+
+    cfg = doc.get("cruise_lines", {})
+    n_bins = int(cfg.get("bins", 9))
+    for fj in cfg.get("fjords", []):
+        nodes, n = aggregate_fjord_track(df, str(fj.get("station_prefix", "")), n_bins)
+        fj["track"] = CommentedSeq(flow_point(lat, lon) for lat, lon in nodes)
+        print(f"  {fj.get('name', ''):<15} {n:>3} stations -> {len(nodes)} track points")
+
+    with config_path.open("w", encoding="utf-8") as fh:
+        yaml_rt.dump(doc, fh)
+    print(f"Updated tracks in {config_path}")
 
 
 # --------------------------------------------------------------------------
@@ -270,6 +335,7 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
 
   /* ---- Legend ---- */
   .legend {
+    position: absolute; z-index: 1000;
     background: var(--panel-bg); border: 1px solid var(--panel-border);
     border-radius: 8px; padding: 10px 12px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
@@ -528,11 +594,11 @@ map.addLayer(clusters);
 });
 
 // ------------------------------------------------------------------
-// Legend
+// Legend — positioned in px from a chosen corner (CFG.legend.position)
 // ------------------------------------------------------------------
-const legend = L.control({ position: "bottomleft" });
-legend.onAdd = function () {
-  const div = L.DomUtil.create("div", "legend");
+(function () {
+  const div = document.createElement("div");
+  div.className = "legend";
   let html = "<h4>" + (CFG.legend.title || "Legend") + "</h4>";
   LEGEND.forEach(function (e) {
     html +=
@@ -557,9 +623,18 @@ legend.onAdd = function () {
       (CFG.legend.blob_label || "Atmospheric sampling") + "</span></div>";
   }
   div.innerHTML = html;
-  return div;
-};
-legend.addTo(map);
+
+  const pos = (CFG.legend && CFG.legend.position) || { anchor: "bottom-left", x: 12, y: 12 };
+  const anchor = pos.anchor || "bottom-left";
+  const x = (pos.x != null ? pos.x : 12) + "px";
+  const y = (pos.y != null ? pos.y : 12) + "px";
+  if (anchor.indexOf("right") >= 0) { div.style.right = x; } else { div.style.left = x; }
+  if (anchor.indexOf("top") >= 0) { div.style.top = y; } else { div.style.bottom = y; }
+
+  map.getContainer().appendChild(div);
+  L.DomEvent.disableClickPropagation(div);
+  L.DomEvent.disableScrollPropagation(div);
+})();
 
 // ------------------------------------------------------------------
 // North arrow
@@ -625,12 +700,23 @@ def main() -> None:
     parser.add_argument("--csv", type=Path, default=DEFAULT_CSV)
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--extract-tracks", action="store_true",
+                        help="Recompute cruise tracks from the CTD data and write "
+                             "the points back into the config YAML, then exit.")
     args = parser.parse_args()
+
+    df_all = load_samples(args.csv)
+
+    if args.extract_tracks:
+        print("Extracting cruise tracks from CTD data:")
+        extract_tracks_to_config(df_all, args.config)
+        return
 
     cfg = load_config(args.config)
     themes = cfg["themes"]
 
-    df = load_samples(args.csv)
+    df = apply_filters(df_all, cfg.get("filters", {}))
+    n_dropped = len(df_all) - len(df)
     features = build_features(df, themes)
     legend = build_legend(df, themes)
     cruise_lines = build_cruise_lines(df, cfg.get("cruise_lines", {}))
@@ -639,10 +725,10 @@ def main() -> None:
     args.out.parent.mkdir(parents=True, exist_ok=True)
     args.out.write_text(html, encoding="utf-8")
 
-    print(f"Wrote {args.out}  ({len(features)} samples, {len(legend)} themes)")
+    dropped = f", {n_dropped} filtered out" if n_dropped else ""
+    print(f"Wrote {args.out}  ({len(features)} samples{dropped}, {len(legend)} themes)")
     for line in cruise_lines:
-        print(f"  cruise line: {line['name']:<15} {line['n_stations']:>3} stations "
-              f"-> {len(line['coords'])} nodes")
+        print(f"  cruise line: {line['name']:<15} {len(line['coords']):>2} points ({line['source']})")
 
 
 if __name__ == "__main__":
