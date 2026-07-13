@@ -1,0 +1,77 @@
+# =====================================================================
+# GreenFjord sampling-location map — configuration
+# ---------------------------------------------------------------------
+# Everything the map author is expected to edit lives here. After changing
+# this file, regenerate the map with:
+#     uv run python paper_map/build_map.py
+# =====================================================================
+
+# ---- Static text -----------------------------------------------------
+# {n_samples} and {n_themes} are filled in automatically if present.
+title: "GreenFjord sampling locations"
+subtitle: "South Greenland · {n_samples} samples across {n_themes} research themes"
+
+legend:
+  title: "Research theme"
+  transect_label: "CTD transect"        # legend row for the cruise lines
+  blob_label: "Atmospheric sampling"    # legend row for the fading blob
+
+# ---- Initial map view ------------------------------------------------
+# [[south, west], [north, east]]. All markers are still plotted; zooming
+# out reveals coastal samples beyond this frame.
+view:
+  bounds: [[60.60, -46.55], [61.45, -44.75]]
+
+# ---- Research themes -------------------------------------------------
+# Default icon colours + legend styling, keyed by the CSV "Cluster" value.
+# Order here controls the legend order and pie-segment order.
+#   color        : marker badge fill + pie segment colour
+#   text_color   : icon colour on the badge
+#   legend_icon  : Font Awesome (v6 solid) icon shown in the legend
+#   label        : display name in the legend
+themes:
+  Ocean:        {color: "#32507d", text_color: "#eef3f9", legend_icon: "ship",      label: "Ocean"}
+  Human:        {color: "#ef476f", text_color: "#ffffff", legend_icon: "user",      label: "Human"}
+  Cryosphere:   {color: "#5fb0d6", text_color: "#06303f", legend_icon: "snowflake", label: "Cryosphere"}
+  Atmosphere:   {color: "#e7cf4f", text_color: "#3d3300", legend_icon: "wind",      label: "Atmosphere"}
+  Land:         {color: "#fa9f42", text_color: "#3a2200", legend_icon: "droplet",   label: "Land"}
+  Biodiversity: {color: "#06d6a0", text_color: "#00382a", legend_icon: "fish",      label: "Biodiversity"}
+
+# ---- Named towns -----------------------------------------------------
+# Only the towns listed here get a label + dot on the map.
+towns:
+  - {name: "Narsarsuaq", lat: 61.155, lon: -45.425}
+  - {name: "Narsaq",     lat: 60.913, lon: -46.048}
+  - {name: "Qaqortoq",   lat: 60.718, lon: -46.037}
+  - {name: "Igaliku",    lat: 60.990, lon: -45.424}
+
+# ---- Glacier context boxes -------------------------------------------
+# Highlight rectangles with a label. bounds: [[south, west], [north, east]].
+boxes:
+  - name: "Ocean-terminating glacier"
+    bounds: [[61.28, -45.90], [61.40, -45.55]]
+    color: "#1b7a6b"
+  - name: "Land-terminating glacier"
+    bounds: [[60.94, -45.10], [61.06, -44.70]]
+    color: "#c9772f"
+
+# ---- Atmospheric sampling blob ---------------------------------------
+# A soft, radially-fading disc centred on a point (e.g. Narsaq).
+atmosphere_blob:
+  center: [60.913, -46.048]   # [lat, lon]
+  radius_km: 12
+  opacity: 0.55               # opacity at the centre (fades to 0 at the edge)
+  color: "#e7cf4f"
+
+# ---- CTD cruise lines ------------------------------------------------
+# Marine CTD stations are aggregated by distance along each fjord's main
+# axis (into `bins` nodes) and connected with a line. Each fjord is defined
+# by the leading character of the CTD "Station ID".
+cruise_lines:
+  bins: 9                     # number of distance-aggregated nodes per fjord
+  color: "#22375f"
+  weight: 3
+  opacity: 0.9
+  fjords:
+    - {name: "EKAS Fjord",    station_prefix: "O"}
+    - {name: "Igaliku Fjord", station_prefix: "L"}

@@ -16,8 +16,10 @@ dependencies = [
     "mapclassify>=2.8.1",
     "matplotlib>=3.10.0",
     "munch>=4.0.0",
+    "numpy>=2.2.3",
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
+    "pyyaml>=6.0.2",
     "xarray>=2025.1.2",
 ]
 
