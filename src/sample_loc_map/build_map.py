@@ -592,9 +592,19 @@ function enableHoverFront(layer, companions) {
 // ------------------------------------------------------------------
 // Fullscreen toggle — a Leaflet control button in the top-right corner.
 // Added before the layer switcher so it stacks *above* it (controls in a
-// corner render in order of addition). Uses the native Fullscreen API on
-// the map container.
+// corner render in order of addition).
+//
+// Behaviour depends on context:
+//   * Standalone page -> toggle the native Fullscreen API on the map container.
+//   * Embedded in an iframe -> the Fullscreen API is usually blocked (needs
+//     allow="fullscreen" on the host's iframe), so instead open the map's own
+//     URL as a standalone full page.
 // ------------------------------------------------------------------
+// True when this page is running inside an iframe. A cross-origin parent makes
+// even reading window.top throw, which itself means we are embedded.
+function inIframe() {
+  try { return window.self !== window.top; } catch (e) { return true; }
+}
 const FullscreenControl = L.Control.extend({
   options: { position: "topright" },
   onAdd: function (m) {
@@ -603,16 +613,34 @@ const FullscreenControl = L.Control.extend({
     link.href = "#";
     link.setAttribute("role", "button");
     const target = m.getContainer();
+    const embedded = inIframe();
     function isFs() { return document.fullscreenElement === target; }
     function update() {
-      link.innerHTML = isFs()
-        ? '<i class="fa-solid fa-compress"></i>'
-        : '<i class="fa-solid fa-expand"></i>';
-      link.title = isFs() ? "Exit full screen" : "View full screen";
+      if (embedded) {
+        link.innerHTML = '<i class="fa-solid fa-up-right-from-square"></i>';
+        link.title = "Open full map";
+      } else {
+        link.innerHTML = isFs()
+          ? '<i class="fa-solid fa-compress"></i>'
+          : '<i class="fa-solid fa-expand"></i>';
+        link.title = isFs() ? "Exit full screen" : "View full screen";
+      }
       link.setAttribute("aria-label", link.title);
     }
     L.DomEvent.on(link, "click", function (ev) {
       L.DomEvent.stop(ev);
+      if (embedded) {
+        // Break out of the iframe to the standalone map page. Prefer navigating
+        // the top window (allowed on user activation); fall back to a new tab if
+        // a cross-origin parent blocks it.
+        const url = window.location.href;
+        try {
+          window.top.location.href = url;
+        } catch (e) {
+          window.open(url, "_blank", "noopener");
+        }
+        return;
+      }
       if (isFs()) {
         if (document.exitFullscreen) document.exitFullscreen();
       } else if (target.requestFullscreen) {
@@ -620,10 +648,12 @@ const FullscreenControl = L.Control.extend({
       }
     });
     L.DomEvent.disableClickPropagation(container);
-    document.addEventListener("fullscreenchange", function () {
-      update();
-      m.invalidateSize();
-    });
+    if (!embedded) {
+      document.addEventListener("fullscreenchange", function () {
+        update();
+        m.invalidateSize();
+      });
+    }
     update();
     return container;
   },

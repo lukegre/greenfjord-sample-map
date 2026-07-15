@@ -35,7 +35,7 @@ legend:
 # max-lat). All markers are still plotted; zooming out reveals coastal samples
 # beyond this frame.
 view:
-  bounds: [ -47.458191, 60.466019, -45.079651, 61.150525 ]
+  bounds: [ -47.524109, 60.517427, -45.145569, 61.200844 ]
 
 # ---- Map furniture: north arrow + scale bar --------------------------
 # North arrow. Position works like the legend: pick a corner to anchor to,
