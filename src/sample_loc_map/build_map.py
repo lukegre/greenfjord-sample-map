@@ -495,6 +495,17 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   }
   .leaflet-control-scale-line:not(:first-child) { margin-top: 3px; border-top: none; }
 
+  /* ---- Map tools group (north arrow + scale bar, draggable together) ---- */
+  .map-tools {
+    position: absolute; z-index: 1000;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .map-tools.dragging { cursor: grabbing; }
+  /* Children flow inside the group instead of pinning to their own corner. */
+  .map-tools .north-arrow,
+  .map-tools .leaflet-control-scale { position: static; margin: 0; }
+
   /* ---- Fullscreen toggle control ---- */
   /* Match the layer switcher's toggle exactly. Leaflet grows that toggle to
      44px on touch-capable browsers (the .leaflet-touch class) but leaves plain
@@ -1396,22 +1407,105 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
 })();
 
 // ------------------------------------------------------------------
-// North arrow — positioned in px from a chosen corner (like the legend).
+// Map tools — north arrow + scale bar grouped into one draggable panel.
+// Positioned in px from a chosen corner (like the legend); dragging anywhere
+// on the group moves both together, clamped to the map container.
 // ------------------------------------------------------------------
 (function () {
-  const cfg = CFG.north_arrow || {};
-  if (cfg.show === false) return;
-  const div = document.createElement("div");
-  div.className = "north-arrow";
-  div.innerHTML = '<div class="arrow"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i></div><div class="n">N</div>';
-  const pos = cfg.position || { anchor: "bottom-right", x: 12, y: 44 };
-  const anchor = pos.anchor || "bottom-right";
+  const naCfg = CFG.north_arrow || {};
+  const scCfg = CFG.scale_bar || {};
+  const showNA = naCfg.show !== false;
+  const showSC = scCfg.show !== false;
+  if (!showNA && !showSC) return;
+
+  const group = document.createElement("div");
+  group.className = "map-tools";
+
+  // North arrow on top.
+  if (showNA) {
+    const na = document.createElement("div");
+    na.className = "north-arrow";
+    na.innerHTML = '<div class="arrow"><i class="fa-solid fa-location-arrow" style="transform:rotate(-45deg)"></i></div><div class="n">N</div>';
+    group.appendChild(na);
+  }
+
+  // Scale bar (a Leaflet control) beneath it. It keeps a reference to its own
+  // DOM node, so it still updates on zoom/pan after we move it into the group.
+  if (showSC) {
+    const ctrl = L.control.scale({
+      position: "bottomright",   // placeholder; the group is positioned by hand
+      maxWidth: scCfg.max_width || 140,
+      metric: scCfg.metric !== false,
+      imperial: !!scCfg.imperial,
+    }).addTo(map);
+    group.appendChild(ctrl.getContainer());
+  }
+
+  // Anchor the group to a corner + px offset. Use the scale bar's configured
+  // position (it's the lower element), else the north arrow's, else a default.
+  const scPos = (scCfg.position && typeof scCfg.position === "object") ? scCfg.position : null;
+  const pos = (scPos && scPos.anchor) ? scPos : (naCfg.position || { anchor: "bottom-left", x: 12, y: 12 });
+  const anchor = pos.anchor || "bottom-left";
   const x = (pos.x != null ? pos.x : 12) + "px";
-  const y = (pos.y != null ? pos.y : 44) + "px";
-  if (anchor.indexOf("right") >= 0) { div.style.right = x; } else { div.style.left = x; }
-  if (anchor.indexOf("top") >= 0) { div.style.top = y; } else { div.style.bottom = y; }
-  map.getContainer().appendChild(div);
-  L.DomEvent.disableClickPropagation(div);
+  const y = (pos.y != null ? pos.y : 12) + "px";
+  if (anchor.indexOf("right") >= 0) { group.style.right = x; } else { group.style.left = x; }
+  if (anchor.indexOf("top") >= 0) { group.style.top = y; } else { group.style.bottom = y; }
+
+  map.getContainer().appendChild(group);
+  L.DomEvent.disableClickPropagation(group);
+  L.DomEvent.disableScrollPropagation(group);
+
+  // Drag the whole group by grabbing anywhere on it (mouse + touch). Pins it to
+  // left/top and clamps to the map container so it can't leave the viewport.
+  let startX, startY, startLeft, startTop, dragging = false;
+  function pointFrom(ev) {
+    const t = ev.touches && ev.touches[0];
+    return t ? { x: t.clientX, y: t.clientY } : { x: ev.clientX, y: ev.clientY };
+  }
+  function onMove(ev) {
+    if (!dragging) return;
+    const p = pointFrom(ev);
+    const cont = map.getContainer().getBoundingClientRect();
+    let left = startLeft + (p.x - startX);
+    let top = startTop + (p.y - startY);
+    left = Math.max(0, Math.min(left, cont.width - group.offsetWidth));
+    top = Math.max(0, Math.min(top, cont.height - group.offsetHeight));
+    group.style.left = left + "px";
+    group.style.top = top + "px";
+    if (ev.cancelable) ev.preventDefault();
+  }
+  function onUp() {
+    dragging = false;
+    group.classList.remove("dragging");
+    document.removeEventListener("mousemove", onMove);
+    document.removeEventListener("mouseup", onUp);
+    document.removeEventListener("touchmove", onMove);
+    document.removeEventListener("touchend", onUp);
+  }
+  function onDown(ev) {
+    // Switch to left/top anchoring based on the current on-screen position.
+    const cont = map.getContainer().getBoundingClientRect();
+    const rect = group.getBoundingClientRect();
+    startLeft = rect.left - cont.left;
+    startTop = rect.top - cont.top;
+    group.style.left = startLeft + "px";
+    group.style.top = startTop + "px";
+    group.style.right = "auto";
+    group.style.bottom = "auto";
+    const p = pointFrom(ev);
+    startX = p.x;
+    startY = p.y;
+    dragging = true;
+    group.classList.add("dragging");
+    ev.preventDefault();
+    ev.stopPropagation();
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
+  }
+  group.addEventListener("mousedown", onDown);
+  group.addEventListener("touchstart", onDown, { passive: false });
 })();
 
 // ------------------------------------------------------------------
@@ -1454,38 +1548,8 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
   L.DomEvent.disableClickPropagation(div);
 })();
 
-// ------------------------------------------------------------------
-// Scale bar (Leaflet control)
-// ------------------------------------------------------------------
-(function () {
-  const cfg = CFG.scale_bar || {};
-  if (cfg.show === false) return;
-  const pos = cfg.position;
-  const anchored = pos && typeof pos === "object" && pos.anchor;
-  const ctrl = L.control.scale({
-    // A plain string ("bottomright") is passed straight to Leaflet; the anchor
-    // object is repositioned by hand below, so it just needs a valid placeholder.
-    position: (typeof pos === "string" ? pos : "bottomright"),
-    maxWidth: cfg.max_width || 140,
-    metric: cfg.metric !== false,
-    imperial: !!cfg.imperial,
-  }).addTo(map);
-
-  if (anchored) {
-    // Position like the legend / north arrow: pin to a corner + px offset.
-    const el = ctrl.getContainer();
-    const anchor = pos.anchor || "bottom-right";
-    const x = (pos.x != null ? pos.x : 12) + "px";
-    const y = (pos.y != null ? pos.y : 12) + "px";
-    el.style.position = "absolute";
-    el.style.zIndex = 1000;
-    el.style.margin = "0";
-    if (anchor.indexOf("right") >= 0) { el.style.right = x; } else { el.style.left = x; }
-    if (anchor.indexOf("top") >= 0) { el.style.top = y; } else { el.style.bottom = y; }
-    map.getContainer().appendChild(el);   // out of the Leaflet corner, onto the map
-    L.DomEvent.disableClickPropagation(el);
-  }
-})();
+// (The scale bar is built and positioned together with the north arrow in the
+// "Map tools" block above, so they can be dragged as one group.)
 </script>
 </body>
 </html>

@@ -23,7 +23,7 @@ legend:
   #   anchor: top-left | top-right | bottom-left | bottom-right
   #   x     : horizontal distance from that corner (px)
   #   y     : vertical distance from that corner (px)
-  position: { anchor: "bottom-left", x: 12, y: 12 }
+  position: { anchor: "top-left", x: 20, y: 90 }
   # Interactive legend: each theme row expands (caret) to reveal its sub-types,
   # and clicking a theme or sub-type toggles those samples on/off on the map.
   # Parent counts update to reflect what is currently shown.
@@ -43,7 +43,7 @@ view:
 #   anchor: top-left | top-right | bottom-left | bottom-right
 north_arrow:
   show: true
-  position: { anchor: "bottom-left", x: 265, y: 44 }
+  position: { anchor: "bottom-left", x: 20, y: 44 }
 
 # Scale bar (Leaflet control). Position works like the legend / north arrow:
 # pick a corner to anchor to, then offset in px from that corner.
@@ -51,7 +51,7 @@ north_arrow:
 # (A plain corner string like "bottomright" also still works.)
 scale_bar:
   show: true
-  position: { anchor: "bottom-left", x: 260, y: 15 }
+  position: { anchor: "bottom-left", x: 20, y: 15 }
   max_width: 80 # widest the bar may grow (px)
   metric: true # show a metric (km/m) line
   imperial: false # show an imperial (mi/ft) line
