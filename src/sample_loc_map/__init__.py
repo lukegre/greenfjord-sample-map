@@ -1,5 +1,3 @@
-from .data import read_google_spreadsheet
-from .main import GOOGLE_SHEET_URL
-from .main import main as main
+from .build_map import load_samples, main
 
-__all__ = ["read_google_spreadsheet", "GOOGLE_SHEET_URL", "main"]
+__all__ = ["load_samples", "main"]

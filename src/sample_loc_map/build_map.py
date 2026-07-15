@@ -41,6 +41,7 @@ import re
 import urllib.request
 from pathlib import Path
 
+import dotenv
 import numpy as np
 import pandas as pd
 import yaml
@@ -50,11 +51,11 @@ from ruamel.yaml import YAML
 # Paths
 # --------------------------------------------------------------------------
 
-REPO_ROOT = Path(__file__).resolve().parent.parent
+REPO_ROOT = Path(dotenv.find_dotenv("pyproject.toml")).resolve().parent
 HERE = Path(__file__).resolve().parent
 DEFAULT_CSV = REPO_ROOT / "data" / "sample_locations_merged.csv"
 DEFAULT_CONFIG = HERE / "config.yml"
-DEFAULT_OUT = HERE / "greenfjord_sample_map.html"
+DEFAULT_OUT = REPO_ROOT / "docs" / "index.html"
 
 # CSV "Cluster" spellings that should map onto a canonical theme name.
 CLUSTER_ALIASES = {"Cryoshpere": "Cryosphere"}
@@ -131,10 +132,7 @@ def compute_disabled_keys(df: pd.DataFrame, filters: dict) -> list[list[str]]:
         return []
 
     global_ex = {str(t) for t in exclude.get("*", []) or []}
-    present = {
-        (str(theme), _sub_label(st))
-        for theme, st in zip(df["Cluster"], df["Type"])
-    }
+    present = {(str(theme), _sub_label(st)) for theme, st in zip(df["Cluster"], df["Type"])}
     disabled = set()
     for theme, subtype in present:
         theme_ex = {str(t) for t in (exclude.get(theme, []) or [])}
