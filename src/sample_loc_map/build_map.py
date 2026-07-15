@@ -415,7 +415,13 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
   .legend h4 {
     margin: 0 0 8px; font-size: 13px; text-transform: uppercase;
     letter-spacing: 0.04em; color: #55616d;
+    cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none;
   }
+  .legend h4::before {
+    content: "\2630"; margin-right: 6px; opacity: 0.45; font-size: 11px;
+  }
+  .legend.dragging { box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3); }
+  .legend.dragging h4 { cursor: grabbing; }
   .legend-subhead {
     margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.04em; color: #55616d;
@@ -1232,6 +1238,65 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
   map.getContainer().appendChild(div);
   L.DomEvent.disableClickPropagation(div);
   L.DomEvent.disableScrollPropagation(div);
+
+  // Drag the legend by its title line. Grabbing the <h4> pins the panel to
+  // left/top (dropping any right/bottom anchoring) and follows the cursor,
+  // clamped to the map container so it can't be dragged off-screen. Uses mouse
+  // + touch events so it works on desktop and touch devices alike.
+  (function () {
+    const handle = div.querySelector("h4");
+    if (!handle) return;
+    let startX, startY, startLeft, startTop, dragging = false;
+
+    function pointFrom(ev) {
+      const t = ev.touches && ev.touches[0];
+      return t ? { x: t.clientX, y: t.clientY } : { x: ev.clientX, y: ev.clientY };
+    }
+    function onMove(ev) {
+      if (!dragging) return;
+      const p = pointFrom(ev);
+      const cont = map.getContainer().getBoundingClientRect();
+      let left = startLeft + (p.x - startX);
+      let top = startTop + (p.y - startY);
+      left = Math.max(0, Math.min(left, cont.width - div.offsetWidth));
+      top = Math.max(0, Math.min(top, cont.height - div.offsetHeight));
+      div.style.left = left + "px";
+      div.style.top = top + "px";
+      if (ev.cancelable) ev.preventDefault();
+    }
+    function onUp() {
+      dragging = false;
+      div.classList.remove("dragging");
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
+    }
+    function onDown(ev) {
+      // Switch to left/top anchoring based on the current on-screen position.
+      const cont = map.getContainer().getBoundingClientRect();
+      const rect = div.getBoundingClientRect();
+      startLeft = rect.left - cont.left;
+      startTop = rect.top - cont.top;
+      div.style.left = startLeft + "px";
+      div.style.top = startTop + "px";
+      div.style.right = "auto";
+      div.style.bottom = "auto";
+      const p = pointFrom(ev);
+      startX = p.x;
+      startY = p.y;
+      dragging = true;
+      div.classList.add("dragging");
+      ev.preventDefault();
+      ev.stopPropagation();
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend", onUp);
+    }
+    handle.addEventListener("mousedown", onDown);
+    handle.addEventListener("touchstart", onDown, { passive: false });
+  })();
 
   // Map-overlay layers (CTD transects, atmosphere blob, place names, glacier
   // boxes). setOverlay syncs the Leaflet layers AND greys the legend row so the
