@@ -186,6 +186,19 @@
   }
   .leaflet-control-scale-line:not(:first-child) { margin-top: 3px; border-top: none; }
 
+  /* ---- Fullscreen toggle control ---- */
+  /* Match the layer switcher's toggle exactly. Leaflet grows that toggle to
+     44px on touch-capable browsers (the .leaflet-touch class) but leaves plain
+     .leaflet-bar buttons at 36px, so mirror both sizes here. */
+  .fullscreen-control a {
+    display: flex; align-items: center; justify-content: center;
+    width: 36px; height: 36px; line-height: 36px;
+    font-size: 17px; color: var(--ink);
+  }
+  .leaflet-touch .fullscreen-control a {
+    width: 44px; height: 44px; line-height: 44px; font-size: 20px;
+  }
+
   /* ---- Project logo ---- */
   .map-logo {
     position: absolute; z-index: 1000;
@@ -272,6 +285,47 @@ function enableHoverFront(layer, companions) {
     });
   });
 }
+
+// ------------------------------------------------------------------
+// Fullscreen toggle — a Leaflet control button in the top-right corner.
+// Added before the layer switcher so it stacks *above* it (controls in a
+// corner render in order of addition). Uses the native Fullscreen API on
+// the map container.
+// ------------------------------------------------------------------
+const FullscreenControl = L.Control.extend({
+  options: { position: "topright" },
+  onAdd: function (m) {
+    const container = L.DomUtil.create("div", "leaflet-bar leaflet-control fullscreen-control");
+    const link = L.DomUtil.create("a", "", container);
+    link.href = "#";
+    link.setAttribute("role", "button");
+    const target = m.getContainer();
+    function isFs() { return document.fullscreenElement === target; }
+    function update() {
+      link.innerHTML = isFs()
+        ? '<i class="fa-solid fa-compress"></i>'
+        : '<i class="fa-solid fa-expand"></i>';
+      link.title = isFs() ? "Exit full screen" : "View full screen";
+      link.setAttribute("aria-label", link.title);
+    }
+    L.DomEvent.on(link, "click", function (ev) {
+      L.DomEvent.stop(ev);
+      if (isFs()) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (target.requestFullscreen) {
+        target.requestFullscreen();
+      }
+    });
+    L.DomEvent.disableClickPropagation(container);
+    document.addEventListener("fullscreenchange", function () {
+      update();
+      m.invalidateSize();
+    });
+    update();
+    return container;
+  },
+});
+map.addControl(new FullscreenControl());
 
 L.control.layers(baseLayers, {}, { position: "topright", collapsed: true }).addTo(map);
 
