@@ -242,4 +242,5 @@ commits `docs/index.html` if it changed, and publishes `docs/` to the
   map screenshot documentation, and north-arrow positioning.
 - **2026-07-20:** Grouped the north arrow and scale bar into one draggable
   control, added configurable cluster spiderfying, and added the optional live
-  viewport BBOX (WSEN) readout.
+  viewport BBOX (WSEN) readout. Switched the initial view configuration from a
+  fitted BBOX to an explicit center and zoom.
