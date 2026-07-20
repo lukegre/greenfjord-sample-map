@@ -29,6 +29,7 @@ legend:
   # Parent counts update to reflect what is currently shown.
   interactive: true
   start_expanded: false # begin with all themes expanded?
+  features_start_expanded: false # begin with the Map features section expanded?
 
 # ---- Initial map view ------------------------------------------------
 # Center uses Leaflet coordinate order [latitude, longitude]. Zoom is an integer:
@@ -228,6 +229,9 @@ atmosphere_blob:
   radius_km: 12
   opacity: 0.75 # opacity at the centre (fades to 0 at the edge)
   color: "#e7cf4f" # blob colour (any CSS/hex colour)
+  # Visible zoom range, inclusive. Set either value to null for no limit.
+  min_zoom: 0
+  max_zoom: 11
 
 # ---- CTD cruise lines ------------------------------------------------
 # Each fjord's line is drawn through its `track` points (below), which you can

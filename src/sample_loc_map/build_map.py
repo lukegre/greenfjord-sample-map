@@ -415,6 +415,16 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     margin: 0 0 6px; font-size: 11px; font-weight: 700; text-transform: uppercase;
     letter-spacing: 0.04em; color: #55616d;
   }
+  .legend-features-head {
+    display: flex; align-items: center; gap: 5px; margin: 0;
+    padding: 2px 4px; margin-left: -4px; margin-right: -4px;
+    border-radius: 5px; cursor: pointer; user-select: none;
+    -webkit-user-select: none;
+  }
+  .legend-features-head:hover,
+  .legend-features-head:focus-visible { background: rgba(0, 0, 0, 0.05); outline: none; }
+  .legend-features { display: none; margin-top: 6px; }
+  .legend-features.open { display: block; }
   .legend-row { display: flex; align-items: center; gap: 9px; font-size: 13.5px; }
   .legend-row + .legend-row { margin-top: 5px; }
   .legend-badge {
@@ -1237,6 +1247,7 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
 (function () {
   const interactive = CFG.legend.interactive !== false;
   const startOpen = !!CFG.legend.start_expanded;
+  const featuresStartOpen = !!CFG.legend.features_start_expanded;
 
   function esc(t) {
     return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -1277,7 +1288,12 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
     html += "</div>";
   });
   html += '<hr class="legend-sep">';
-  html += '<div class="legend-subhead">Map features</div>';
+  html +=
+    '<div class="legend-subhead legend-features-head" role="button" tabindex="0" aria-expanded="' +
+    (featuresStartOpen ? "true" : "false") + '">' +
+    '<span class="legend-caret' + (featuresStartOpen ? " open" : "") + '">▶</span>' +
+    '<span>' + esc(CFG.legend.features_label || "Map features") + "</span></div>" +
+    '<div class="legend-features' + (featuresStartOpen ? " open" : "") + '">';
   if (CRUISE_LINES.length) {
     html +=
       '<div class="legend-row legend-toggle' + (interactive ? " clickable" : "") + '" data-layer="transect">' +
@@ -1305,6 +1321,7 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
       '<span class="legend-box"></span><span class="legend-label">' +
       esc(CFG.legend.boxes_label || "Glacier boxes") + "</span></div>";
   }
+  html += "</div>";
   div.innerHTML = html;
 
   const pos = (CFG.legend && CFG.legend.position) || { anchor: "bottom-left", x: 12, y: 12 };
@@ -1396,26 +1413,57 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
     if (on && key === "towns") layoutTownLabels();
   }
 
-  // Zoom auto-rules: place names + glacier boxes are off at zoom 0-8, on from 9
-  // up; atmospheric sampling turns off at zoom 13+. Only fires on threshold
-  // crossings, so the user's manual toggles persist while zooming within a band.
-  let prevNear = null, prevFar = null;
+  // Zoom auto-rules: place names + glacier boxes are off at zoom 0-8 and on
+  // from 9 up. Atmospheric sampling follows its configurable inclusive
+  // min_zoom/max_zoom range. Rules only fire when a threshold is crossed, so
+  // manual legend toggles persist while zooming inside the same range.
+  const blobCfg = CFG.atmosphere_blob || {};
+  const blobMinZoom = blobCfg.min_zoom != null && Number.isFinite(Number(blobCfg.min_zoom))
+    ? Number(blobCfg.min_zoom) : null;
+  const blobMaxZoom = blobCfg.max_zoom != null && Number.isFinite(Number(blobCfg.max_zoom))
+    ? Number(blobCfg.max_zoom) : null;
+  let prevNear = null, prevBlobInRange = null;
   function syncZoomOverlays() {
     const z = map.getZoom();
     const near = z >= 9;          // place names + glacier boxes visible
-    const far = z >= 13;          // atmospheric sampling suppressed
+    const blobInRange =
+      (blobMinZoom == null || z >= blobMinZoom) &&
+      (blobMaxZoom == null || z <= blobMaxZoom);
     if (near !== prevNear) {
       setOverlay("towns", near);
       setOverlay("boxes", near);
       prevNear = near;
     }
-    if (far !== prevFar) {
-      setOverlay("blob", !far);
-      prevFar = far;
+    if (blobInRange !== prevBlobInRange) {
+      setOverlay("blob", blobInRange);
+      prevBlobInRange = blobInRange;
     }
   }
   map.on("zoomend", syncZoomOverlays);
   syncZoomOverlays();
+
+  // The Map features disclosure remains usable even when layer toggling is
+  // disabled with legend.interactive: false.
+  function toggleFeatures() {
+    const head = div.querySelector(".legend-features-head");
+    const body = div.querySelector(".legend-features");
+    if (!head || !body) return;
+    const open = !body.classList.contains("open");
+    body.classList.toggle("open", open);
+    const caret = head.querySelector(".legend-caret");
+    if (caret) caret.classList.toggle("open", open);
+    head.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+  div.addEventListener("click", function (ev) {
+    if (ev.target.closest(".legend-features-head")) toggleFeatures();
+  });
+  div.addEventListener("keydown", function (ev) {
+    const featuresHead = ev.target.closest(".legend-features-head");
+    if (featuresHead && (ev.key === "Enter" || ev.key === " ")) {
+      ev.preventDefault();
+      toggleFeatures();
+    }
+  });
 
   if (!interactive) return;
 
@@ -1457,6 +1505,8 @@ map.on("zoomend moveend viewreset", layoutTownLabels);
   }
 
   div.addEventListener("click", function (ev) {
+    const featuresHead = ev.target.closest(".legend-features-head");
+    if (featuresHead) return;
     const caret = ev.target.closest(".legend-caret");
     if (caret) {
       caret.classList.toggle("open");

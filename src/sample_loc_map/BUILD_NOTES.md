@@ -122,10 +122,12 @@ as a curated build input.
 - **Interactive legend:** themes expand into sample subtypes. Clicking a theme
   or subtype filters markers and recomputes the clusters and displayed counts.
 - **Map feature toggles:** cruise tracks, atmospheric sampling, place names,
-  and glacier boxes can be toggled from the legend.
-- **Zoom rules:** place names and glacier boxes appear from zoom 9; the
-  atmospheric overlay is suppressed from zoom 13. Manual state is retained
-  while zooming inside the same threshold band.
+  and glacier boxes can be toggled from a collapsible legend section that is
+  closed by default.
+- **Zoom rules:** place names and glacier boxes appear from zoom 9. The
+  atmospheric overlay follows its configurable inclusive `min_zoom` and
+  `max_zoom` range. Manual state is retained while zooming inside the same
+  threshold band.
 - **CTD tracks:** configured points are drawn with a halo and optional curve
   smoothing.
 - **Map furniture:** the legend is draggable by its heading. The north arrow
@@ -144,7 +146,7 @@ All author-facing values live in `src/sample_loc_map/config.yml`.
 | Key | Controls |
 |---|---|
 | `title`, `subtitle` | Browser title and optional formatted text. `{n_samples}` and `{n_themes}` are interpolated where supported. |
-| `legend` | Heading, feature labels, position, interactivity, and initial expansion. |
+| `legend` | Heading, feature labels, position, interactivity, theme expansion, and the initial expansion state of the Map features section. |
 | `view.center`, `view.zoom` | Initial map center in `[latitude, longitude]` order and Leaflet zoom level. |
 | `north_arrow`, `scale_bar` | Visibility, placement, and scale units. The two controls are rendered as one draggable group. |
 | `bbox_display` | Visibility, Leaflet corner, and decimal precision of the live viewport BBOX (WSEN) readout. |
@@ -157,7 +159,7 @@ All author-facing values live in `src/sample_loc_map/config.yml`.
 | `filters.exclude_types` | Subtypes that begin disabled in the interactive legend. Samples remain available and can be re-enabled. |
 | `towns` | Hand-placed town dots and labels. |
 | `box_defaults`, `boxes` | Glacier rectangle geometry, outlines, fill, rounded corners, shadows, and labels. |
-| `atmosphere_blob` | Center, radius, opacity, and color of the atmospheric overlay. |
+| `atmosphere_blob` | Center, radius, opacity, color, and inclusive visible zoom range (`min_zoom`/`max_zoom`; `null` removes a limit). |
 | `cruise_lines` | Track styling, smoothing, aggregation bins, fjord prefixes, and editable track points. |
 
 Coordinate conventions are intentionally different:
@@ -243,4 +245,6 @@ commits `docs/index.html` if it changed, and publishes `docs/` to the
 - **2026-07-20:** Grouped the north arrow and scale bar into one draggable
   control, added configurable cluster spiderfying, and added the optional live
   viewport BBOX (WSEN) readout. Switched the initial view configuration from a
-  fitted BBOX to an explicit center and zoom.
+  fitted BBOX to an explicit center and zoom. Made the Map features legend
+  section collapsible and closed by default. Exposed the atmospheric overlay's
+  minimum and maximum visible zoom levels in YAML.
