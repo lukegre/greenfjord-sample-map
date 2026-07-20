@@ -135,6 +135,13 @@ themes:
 markers:
   size: 26
 
+# ---- Sample clusters -------------------------------------------------
+# Clicking a cluster zooms toward its samples until this zoom level is reached.
+# From this level onward, clustered markers fan out in a circle/spiral instead
+# of zooming farther in. Lower values spiderfy sooner; default is 13.
+clusters:
+  spiderfy_from_zoom: 13
+
 # ---- Filters ---------------------------------------------------------
 # Start specific sample sub-types (the CSV "Type" column) toggled *off* in the
 # interactive legend — the samples stay in the data (and in the legend), just

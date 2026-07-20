@@ -886,9 +886,33 @@ function markerPopup(s) {
 const clusters = L.markerClusterGroup({
   maxClusterRadius: 55,
   showCoverageOnHover: false,
-  spiderfyOnMaxZoom: true,
+  // Cluster clicks are handled below so zooming can stop at the configured
+  // spiderfy threshold rather than jumping all the way to the map's max zoom.
+  spiderfyOnMaxZoom: false,
+  zoomToBoundsOnClick: false,
   iconCreateFunction: pieClusterIcon,
   clusterPane: "samplesPane",
+});
+
+const CLUSTER_CFG = CFG.clusters || {};
+const configuredSpiderfyZoom = Number(CLUSTER_CFG.spiderfy_from_zoom);
+const SPIDERFY_FROM_ZOOM = Number.isFinite(configuredSpiderfyZoom)
+  ? Math.max(0, configuredSpiderfyZoom)
+  : 13;
+
+clusters.on("clusterclick", function (e) {
+  const cluster = e.layer;
+  // A basemap may impose a lower maximum than the configured threshold. In
+  // that case spiderfy at the highest zoom the active map can actually reach.
+  const spiderfyZoom = Math.min(SPIDERFY_FROM_ZOOM, map.getMaxZoom());
+  if (map.getZoom() >= spiderfyZoom) {
+    cluster.spiderfy();
+    return;
+  }
+  map.fitBounds(cluster.getBounds(), {
+    padding: [20, 20],
+    maxZoom: spiderfyZoom,
+  });
 });
 
 // One marker object per sample, tagged with theme + sub-type so the legend can
@@ -1656,6 +1680,7 @@ def render_html(cfg, features, legend, cruise_lines, disabled_keys=None) -> str:
         "atmosphere_blob": cfg.get("atmosphere_blob"),
         "cruise_lines": cfg.get("cruise_lines", {}),
         "markers": cfg.get("markers", {}),
+        "clusters": cfg.get("clusters", {}),
         "disabled_types": disabled_keys or [],
     }
 
