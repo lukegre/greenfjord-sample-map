@@ -1,142 +1,245 @@
 # GreenFjord sampling-location map — build notes
 
-A running log of what this deliverable is, the decisions behind it, and how to
-regenerate / reuse it.
+This document describes the current map generator, its configuration, and the
+steps required to rebuild and validate the published artifact.
 
-## What it is
+## What the project produces
 
-A single self-contained interactive map of the GreenFjord South Greenland
-sampling campaign, styled to resemble the reference figure
-[`docs/static_map_example.png`](../docs/static_map_example.png).
+The project generates one interactive Leaflet page for the GreenFjord South
+Greenland sampling campaign:
 
-- **Primary use:** a publication figure — open in a browser, frame the view,
-  and screenshot / print at high zoom (or via the browser's PDF export).
-- **Secondary use:** an online, pan-/zoom-able map.
+- source data: `data/sample_locations_merged.csv`;
+- author configuration: `src/sample_loc_map/config.yml`;
+- generator: `src/sample_loc_map/build_map.py`; and
+- generated and published artifact: `docs/index.html`.
 
-Files in this folder:
+The HTML contains the cleaned sample data, map configuration, styles, and
+browser-side map logic. It still loads map tiles, Leaflet, Leaflet.markercluster,
+and Font Awesome over the network when viewed.
 
-| File | Role |
-|------|------|
-| `config.yml` | **Everything the author edits** — text, colours, towns, boxes, blob, cruise lines. |
-| `build_map.py` | Python generator: reads the CSV + config, aggregates, emits the HTML. |
-| `greenfjord_sample_map.html` | The generated map (open directly in a browser). |
-| `BUILD_NOTES.md` | This file. |
+The map is useful as an online explorer and as a publication figure that can be
+framed in a browser and exported or captured at high resolution.
 
-## How to build
+## Build
+
+Run commands from the repository root:
 
 ```bash
-uv run python paper_map/build_map.py
-# options: --csv <path>  --config <path>  --out <path>
-
-# (re)generate the editable cruise-track points in config.yml from the CTD data:
-uv run python paper_map/build_map.py --extract-tracks
+uv sync
+uv run sample-loc-map
 ```
 
-Then open `paper_map/greenfjord_sample_map.html` in any browser (needs an
-internet connection for the map tiles + JS/icon CDNs).
+The CLI defaults are equivalent to:
 
-Python deps (managed via `uv`, in `pyproject.toml`): `pandas`, `numpy`,
-`pyyaml`, `ruamel.yaml` (round-trip YAML writing for `--extract-tracks`).
+```bash
+uv run python src/sample_loc_map/build_map.py \
+  --csv data/sample_locations_merged.csv \
+  --config src/sample_loc_map/config.yml \
+  --out docs/index.html
+```
 
-## Features
+All three paths can be overridden:
 
-- **Themed sample markers** — colour from `config.yml` (per theme), icon
-  *shape* from the CSV `icon` column (a theme can span several sample types).
-- **Meaningful aggregation (pie/donut clusters)** — nearby samples collapse
-  into a donut whose segments show the per-theme contribution, with the total
-  count in the centre. Zooming in expands clusters down to individual badges.
-  (Leaflet.markercluster with a custom `iconCreateFunction`.)
-- **CTD cruise lines** — marine CTD stations are split into two fjords by the
-  leading character of their `Station ID` (`O` → EKAS Fjord / ocean-
-  terminating; `L` → Igaliku Fjord / land-terminating), aggregated *by distance
-  along each fjord's principal axis* into `bins` nodes, then connected. This
-  tames the messy raw casts (repeat occupations, side branches) into one clean
-  representative track per fjord.
-- **Atmospheric-sampling blob** — a radially-fading disc (configurable centre,
-  radius, opacity, colour) rendered as an `L.circle` filled with an SVG radial
-  gradient, sitting below the markers.
-- **Interactive legend** — each theme row expands (caret) to reveal its
-  sub-types with counts; clicking a theme or sub-type shows/hides those samples
-  on the map, the pie clusters recompute, and the parent theme count updates to
-  what is currently shown. Set `legend.interactive: false` for a static legend.
-- **Config-driven basemaps** — the tile layers in the switcher come from
-  `basemaps` (name / url / attribution / max_zoom / default).
-- **Configurable glacier boxes** (outline, weight, dash, fill, label styling),
-  **named towns, legend, north arrow, title.**
+```bash
+uv run sample-loc-map \
+  --csv path/to/samples.csv \
+  --config path/to/config.yml \
+  --out path/to/map.html
+```
 
-## What lives in `config.yml`
+To rebuild without touching the tracked artifact:
+
+```bash
+uv run sample-loc-map --out /tmp/greenfjord-index.html
+cmp /tmp/greenfjord-index.html docs/index.html
+```
+
+The build may download the SVG configured under `logo.url`, recolor it, and
+embed it as a data URI. If that request fails, the build emits a warning and
+uses the original remote URL instead. Consequently, an offline build can
+differ from an online build without failing.
+
+## Validation
+
+There is currently no automated test suite or configured linter. The available
+checks are:
+
+```bash
+uv run python -m compileall -q src/sample_loc_map
+uv run sample-loc-map --out /tmp/greenfjord-index.html
+cmp /tmp/greenfjord-index.html docs/index.html
+```
+
+The normal build currently reports 579 samples, six themes, one sample subtype
+disabled by default, and two configured cruise lines. For visual or interaction
+changes, also open `docs/index.html` in a browser and test the affected behavior
+at desktop and narrow viewport sizes.
+
+## Data flow
+
+1. `load_samples()` reads the merged CSV.
+2. The misspelled cluster value `Cryoshpere` is normalized to `Cryosphere`.
+3. `Lat` and `Lon` are coerced to numbers; rows without valid coordinates are
+   removed.
+4. Expected metadata columns are trimmed and missing optional columns are
+   supplied as empty strings.
+5. Years such as `2023.0` are rendered as `2023`.
+6. Python creates sample feature records, theme legend entries, disabled
+   subtype keys, and configured or calculated cruise tracks.
+7. `render_html()` injects JSON into `HTML_TEMPLATE`.
+8. Browser-side Leaflet code builds the map, clusters, filters, overlays, and
+   controls.
+
+The essential CSV columns are `Cluster`, `Lat`, and `Lon`. The current popup
+and filtering behavior also recognizes:
+
+- `Group`
+- `Year`
+- `Location`
+- `Type`
+- `Time`
+- `Station ID`
+- `Link to paper`
+- `Link display`
+- `icon`
+- `Extra`
+
+The other CSV files in `data/` are source or reference datasets. No checked-in
+script recreates `data/sample_locations_merged.csv`, so treat the merged file
+as a curated build input.
+
+## Map behavior
+
+- **Sample badges:** theme colors and text colors come from `config.yml`; the
+  icon name comes from each CSV row.
+- **Donut clusters:** nearby markers collapse into theme-colored segments with
+  a total count in the center.
+- **Cluster clicks:** clicks zoom toward the child markers until
+  `clusters.spiderfy_from_zoom`; at or above that level, the cluster fans its
+  markers out instead.
+- **Popups and tooltips:** individual markers show metadata popups; clusters
+  summarize their contents.
+- **Interactive legend:** themes expand into sample subtypes. Clicking a theme
+  or subtype filters markers and recomputes the clusters and displayed counts.
+- **Map feature toggles:** cruise tracks, atmospheric sampling, place names,
+  and glacier boxes can be toggled from the legend.
+- **Zoom rules:** place names and glacier boxes appear from zoom 9; the
+  atmospheric overlay is suppressed from zoom 13. Manual state is retained
+  while zooming inside the same threshold band.
+- **CTD tracks:** configured points are drawn with a halo and optional curve
+  smoothing.
+- **Map furniture:** the legend is draggable by its heading. The north arrow
+  and scale bar share a draggable group. Dragging is clamped to the map bounds.
+- **Viewport bounds:** an optional live readout reports the visible map window
+  in standard BBOX order: west, south, east, north.
+- **Fullscreen:** the button uses browser fullscreen for a top-level page and
+  opens the map page directly when iframe fullscreen is unavailable.
+- **Logo:** an SVG can be linked, recolored at build time, and positioned from
+  any map corner.
+
+## Configuration reference
+
+All author-facing values live in `src/sample_loc_map/config.yml`.
 
 | Key | Controls |
-|-----|----------|
-| `title`, `subtitle` | Title-card text (`{n_samples}`/`{n_themes}` auto-filled). |
-| `legend.title`, `legend.transect_label`, `legend.blob_label` | Legend text. |
-| `view.bounds` | Default framing (all markers still plotted). |
-| `themes.<Cluster>` | Default icon `color`, `text_color`, `legend_icon`, `label` per research theme; order sets legend + pie-segment order. |
-| `towns` | Which towns get a label + dot. |
-| `boxes` | Glacier highlight rectangles: `name`, `bounds`, `color`. |
-| `legend.position` | Legend placement: `anchor` (corner) + `x`/`y` px offsets from that corner. |
-| `legend.interactive`, `legend.start_expanded` | Enable click-to-filter / expandable sub-types; whether themes start expanded. |
-| `basemaps` | Tile layers in the switcher: `name`, `url`, `attribution`, `max_zoom`, `default`. |
-| `box_defaults` + per-box style keys | Box outline `color`/`weight`/`dash_array`, `fill`/`fill_color`/`fill_opacity`, `label_color`/`label_size`. |
-| `filters.exclude_types` | Build-time drop of CSV `Type` sub-types per theme (`"*"` = all themes). Distinct from the runtime legend toggles. |
-| `atmosphere_blob` | `center`, `radius_km`, `opacity`, `color`. |
-| `cruise_lines` | `color`, `weight`, `opacity`, `bins`, and the `fjords` list (`name`, `station_prefix`, and the hand-editable `track` points). |
+|---|---|
+| `title`, `subtitle` | Browser title and optional formatted text. `{n_samples}` and `{n_themes}` are interpolated where supported. |
+| `legend` | Heading, feature labels, position, interactivity, and initial expansion. |
+| `view.center`, `view.zoom` | Initial map center in `[latitude, longitude]` order and Leaflet zoom level. |
+| `north_arrow`, `scale_bar` | Visibility, placement, and scale units. The two controls are rendered as one draggable group. |
+| `bbox_display` | Visibility, Leaflet corner, and decimal precision of the live viewport BBOX (WSEN) readout. |
+| `logo` | Visibility, source URL, link, height, color/background, padding, and position. |
+| `z_order` | Pane ordering for boxes, samples, labels, and tooltips. |
+| `basemaps` | Ordered tile layers. The first entry is displayed initially. |
+| `themes.<Cluster>` | Theme color, text color, icon, and label. YAML order controls legend and donut-segment order. |
+| `markers.size` | Individual sample-badge diameter. |
+| `clusters.spiderfy_from_zoom` | Zoom level at which cluster clicks switch from zooming to spiderfying. |
+| `filters.exclude_types` | Subtypes that begin disabled in the interactive legend. Samples remain available and can be re-enabled. |
+| `towns` | Hand-placed town dots and labels. |
+| `box_defaults`, `boxes` | Glacier rectangle geometry, outlines, fill, rounded corners, shadows, and labels. |
+| `atmosphere_blob` | Center, radius, opacity, and color of the atmospheric overlay. |
+| `cruise_lines` | Track styling, smoothing, aggregation bins, fjord prefixes, and editable track points. |
 
-## Design decisions
+Coordinate conventions are intentionally different:
 
-- **Tech:** Leaflet + web map tiles. Interactive online; screenshot for the
-  paper. Default basemap **Esri World Topo** (reliable); a top-right switcher
-  also offers **OpenTopoMap** and **Esri Satellite**.
-- **Python vs config vs HTML/CSS split:** Python loads/tidies data and does the
-  transect aggregation; `config.yml` holds all author-editable values; all
-  styling lives in the HTML `<style>` block.
-- **Colours are theme-level (from config), not per-row** — the earlier per-row
-  CSV colours are superseded so the palette is edited in one place. The near-
-  white CSV `Cryosphere` colour was replaced with a legible light blue.
-- **Standalone:** shares no code with `src/sample_loc_map/` (the folium /
-  Google-Sheets project), as requested.
+- glacier-box bounds use `[west, south, east, north]`;
+- the initial view center uses `[latitude, longitude]`;
+- towns use named `lat` and `lon` fields; and
+- atmospheric centers and cruise-track points use `[lat, lon]`.
 
 ## Cruise tracks
 
-Each fjord's line is drawn through the `track: [[lat, lon], ...]` points held
-in `config.yml` — **edit these by hand** to reshape a line. To regenerate them
-from the CTD data, run `--extract-tracks`: it splits stations by `Station ID`
-prefix, aggregates each fjord by distance along its principal axis into `bins`
-nodes, and writes the points back (comments preserved via ruamel round-trip).
-`Location == "Faulty location"` casts are dropped. If a fjord's `track` is empty
-the map falls back to computing it on the fly at build time.
+Each fjord normally uses the hand-editable points under:
 
-## Approximate / author-supplied (not in the CSV)
+```yaml
+cruise_lines:
+  fjords:
+    - name: ...
+      station_prefix: ...
+      track:
+        - [lat, lon]
+```
 
-Edit these in `config.yml`: `towns`, `boxes`, `atmosphere_blob`, `view.bounds`
-(all hand-placed), and the cruise `track` points / fjord assignment.
+If a configured `track` is empty, the normal build calculates a fallback from
+Ocean CTD stations. It selects stations by the leading `Station ID` prefix,
+drops rows whose location is `Faulty location`, projects coordinates into local
+meters, finds the principal fjord axis, bins points along that axis, and joins
+the bin means.
 
-## Known quirks / gotchas
+To deliberately replace the configured points with recalculated tracks:
 
-- **Atmosphere blob fill:** Leaflet re-applies `fill`/`fill-opacity` to vector
-  paths on every redraw, which would wipe the gradient. The gradient fill +
-  full opacity are therefore pinned with `!important` CSS on `.atmo-blob` so
-  they survive zoom/pan.
-- **Initial fit:** the map is given an explicit `center`/`zoom` and only refits
-  to `view.bounds` once its container reports a real size (via a
-  `ResizeObserver`) — guards against embed/preview contexts that report a 0×0
-  window at load (which collapses `fitBounds` to max zoom).
-- Requires network access at view time (tiles + Leaflet / markercluster / Font
-  Awesome CDNs). A guaranteed-offline paper build would mean embedding a
-  fetched basemap image + bundling the JS/CSS locally.
-- Esri basemap prints its own faint town labels; the styled bold labels from
-  `towns` sit on top of them.
+```bash
+uv run sample-loc-map --extract-tracks
+```
+
+This is a mutating maintenance command: it writes to `config.yml` and exits
+without generating the HTML. Review its diff before rebuilding.
+
+## Approximate or author-supplied geography
+
+The following values are not derived from the sample CSV and should be reviewed
+as authored map content:
+
+- `view.center` and `view.zoom`
+- `towns`
+- `boxes`
+- `atmosphere_blob`
+- fjord assignments and `cruise_lines.fjords[].track`
+
+## Generated artifact and deployment
+
+`docs/index.html` is tracked because it is the GitHub Pages entry point. Do not
+edit its embedded JSON, CSS, or JavaScript by hand. Change the CSV, YAML, or
+generator first, then run:
+
+```bash
+uv run sample-loc-map
+```
+
+On pushes to `main`, `.github/workflows/run-sample-loc.yml` runs the same CLI,
+commits `docs/index.html` if it changed, and publishes `docs/` to the
+`gh-pages` branch.
+
+## Known implementation details
+
+- Leaflet reapplies fill properties to vector paths after redraws. The
+  atmospheric gradient is therefore pinned with `!important` CSS on
+  `.atmo-blob`.
+- A `ResizeObserver` refreshes Leaflet's viewport dimensions when an embedded
+  map container changes size without altering the configured center or zoom.
+- Town labels are laid out in the browser to reduce overlap.
+- Map tiles and CDN assets require network access at viewing time. A fully
+  offline build would need locally bundled JavaScript/CSS/icons and an offline
+  basemap.
 
 ## Changelog
 
-- 2026-07-13 — Initial build: Leaflet map, CSS-styled theme badges, legend,
-  place labels, north arrow, glacier boxes, title card.
-- 2026-07-13 — Config-driven rewrite: all author-editable values moved to
-  `config.yml`; added pie/donut cluster aggregation, distance-aggregated CTD
-  cruise lines per fjord, and the configurable atmospheric-sampling blob.
-- 2026-07-13 — Editable cruise `track` points in the YAML (+ `--extract-tracks`
-  regenerator); configurable legend position (`legend.position`); per-theme
-  sub-type filtering (`filters.exclude_types`); documented blob colour control.
-- 2026-07-13 — Interactive legend (expandable sub-types, click-to-filter,
-  live parent counts); box styling in the YAML (`box_defaults` + per-box keys);
-  config-driven `basemaps`.
+- **2026-07-13:** Added the Leaflet generator, themed markers, legend, place
+  labels, north arrow, glacier boxes, configuration-driven styling, donut
+  clusters, CTD tracks, atmospheric overlay, editable tracks, interactive
+  filters, and configurable basemaps.
+- **2026-07-15:** Added fullscreen behavior, draggable legend positioning,
+  map screenshot documentation, and north-arrow positioning.
+- **2026-07-20:** Grouped the north arrow and scale bar into one draggable
+  control, added configurable cluster spiderfying, and added the optional live
+  viewport BBOX (WSEN) readout.

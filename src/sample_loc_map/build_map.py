@@ -1,35 +1,24 @@
 #!/usr/bin/env python3
 """
-build_map.py — Generate a self-contained HTML sampling-location map for the
-GreenFjord South Greenland campaign.
+Generate the interactive GreenFjord sampling-location map.
 
-Reads ``data/sample_locations_merged.csv`` plus a ``config.yml`` and writes a single
-interactive Leaflet map (``greenfjord_sample_map.html``) styled to resemble the
-reference figure in ``docs/static_map_example.png``.
-
-Design split (per the brief):
-    * Python  -> reads + tidies the data, aggregates the CTD transects, and
-                 fills the HTML template.
-    * config.yml -> everything the author edits (text, colours, towns, boxes,
-                 atmosphere blob, cruise-line settings).
-    * HTML/CSS -> all styling (pie clusters, marker badges, legend, north
-                 arrow, labels).
+The default build reads ``data/sample_locations_merged.csv`` and
+``src/sample_loc_map/config.yml``, then writes ``docs/index.html``. Python
+cleans and packages the data, while the generated Leaflet HTML/CSS/JavaScript
+implements the map and its interactions.
 
 Features
     * Themed marker badges (colour from config, icon-shape from the CSV).
-    * Meaningful aggregation: nearby samples collapse into pie/donut clusters
-      showing the per-theme contribution with a total count in the centre.
-    * CTD cruise lines: marine stations aggregated by distance along each
-      fjord's principal axis, then connected.
-    * A configurable, radially-fading atmospheric-sampling blob.
-    * Configurable glacier boxes, named towns, and all static text.
-
-This module is deliberately standalone and shares no code with
-``src/sample_loc_map`` (a different, folium/Google-Sheets project).
+    * Donut clusters with configurable close-zoom spiderfying.
+    * Interactive theme/subtype filters and map-feature toggles.
+    * Configured or distance-aggregated CTD cruise tracks.
+    * Atmospheric overlay, glacier boxes, towns, basemaps, and map controls.
+    * Optional live viewport bounds in standard BBOX west/south/east/north order.
 
 Usage:
-    uv run python paper_map/build_map.py
-    # options: --csv <path> --config <path> --out <path>
+    uv run sample-loc-map
+    uv run sample-loc-map --csv <path> --config <path> --out <path>
+    uv run sample-loc-map --extract-tracks
 """
 
 from __future__ import annotations
@@ -519,6 +508,26 @@ HTML_TEMPLATE = r"""<!DOCTYPE html>
     width: 44px; height: 44px; line-height: 44px; font-size: 20px;
   }
 
+  /* ---- Visible map-window bounds (standard BBOX: west, south, east, north) ---- */
+  .bbox-display {
+    background: var(--panel-bg); border: 1px solid var(--panel-border);
+    border-radius: 6px; padding: 6px 8px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22);
+    color: var(--ink); font-size: 10px; line-height: 1.35;
+    font-variant-numeric: tabular-nums; backdrop-filter: blur(2px);
+    white-space: nowrap; user-select: text; -webkit-user-select: text;
+  }
+  .bbox-display .bbox-title {
+    color: #55616d; font-size: 9px; font-weight: 800;
+    letter-spacing: 0.05em; text-transform: uppercase;
+  }
+  .bbox-display .bbox-values { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .bbox-display .bbox-axis { color: #6b7680; font-weight: 800; }
+  @media (max-width: 520px) {
+    .bbox-display { padding: 5px 6px; font-size: 9px; }
+    .bbox-display .bbox-title { font-size: 8px; }
+  }
+
   /* ---- Project logo ---- */
   .map-logo {
     position: absolute; z-index: 1000;
@@ -559,10 +568,11 @@ let defaultBase = null;
   if (i === 0) defaultBase = layer; // the first basemap in the list loads by default
 });
 
-const bounds = CFG.view.bounds;
-const center = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
+const view = CFG.view || {};
+const center = Array.isArray(view.center) ? view.center : [60.937775, -47.08735];
+const initialZoom = Number.isFinite(Number(view.zoom)) ? Number(view.zoom) : 8;
 
-const map = L.map("map", { center: center, zoom: 9, layers: defaultBase ? [defaultBase] : [], scrollWheelZoom: true, zoomControl: false });
+const map = L.map("map", { center: center, zoom: initialZoom, layers: defaultBase ? [defaultBase] : [], scrollWheelZoom: true, zoomControl: false });
 
 // Panes. z-index for boxes / samples / labels is author-configurable
 // (CFG.z_order); the atmosphere blob sits below them all.
@@ -679,19 +689,53 @@ map.addControl(new FullscreenControl());
 
 L.control.layers(baseLayers, {}, { position: "topright", collapsed: true }).addTo(map);
 
-// Re-fit once the container truly has a size (guards against 0x0 at load).
-let userMoved = false;
-map.on("zoomstart movestart", function () { userMoved = true; });
-function fitStudyArea() {
-  if (userMoved) return;
+// Live visible-window coordinates in standard bounding-box order (WSEN), not
+// Leaflet's internal latitude/longitude corner order.
+(function () {
+  const cfg = CFG.bbox_display || {};
+  if (cfg.show === false) return;
+  const allowedPositions = ["topleft", "topright", "bottomleft", "bottomright"];
+  const position = allowedPositions.indexOf(cfg.position) >= 0 ? cfg.position : "bottomright";
+  const precision = Math.max(0, Math.min(8, Number.isFinite(Number(cfg.precision)) ? Number(cfg.precision) : 5));
+  const BboxControl = L.Control.extend({
+    options: { position: position },
+    onAdd: function (m) {
+      const container = L.DomUtil.create("div", "leaflet-control bbox-display");
+      container.setAttribute("role", "status");
+      container.setAttribute("aria-live", "polite");
+      const values = L.DomUtil.create("div", "bbox-values", container);
+      const title = L.DomUtil.create("div", "bbox-title", container);
+      title.textContent = "BBOX WSEN";
+      container.insertBefore(title, values);
+      function format(value) { return Number(value).toFixed(precision); }
+      function update() {
+        const visible = m.getBounds();
+        values.innerHTML =
+          '<span class="bbox-axis">W</span> ' + format(visible.getWest()) +
+          ' <span class="bbox-axis">S</span> ' + format(visible.getSouth()) + '<br>' +
+          '<span class="bbox-axis">E</span> ' + format(visible.getEast()) +
+          ' <span class="bbox-axis">N</span> ' + format(visible.getNorth());
+      }
+      m.on("moveend zoomend resize", update);
+      update();
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      return container;
+    },
+  });
+  map.addControl(new BboxControl());
+})();
+
+// Keep Leaflet's viewport dimensions current when an embedded map container
+// becomes visible or changes size, without changing the configured center/zoom.
+function refreshMapSize() {
   const s = map.getSize();
   if (s.x < 50 || s.y < 50) return;
-  map.invalidateSize();
-  map.fitBounds(bounds, { padding: [20, 20] });
+  map.invalidateSize({ pan: false });
 }
-if (window.ResizeObserver) new ResizeObserver(fitStudyArea).observe(document.getElementById("map"));
-window.addEventListener("load", fitStudyArea);
-map.whenReady(fitStudyArea);
+if (window.ResizeObserver) new ResizeObserver(refreshMapSize).observe(document.getElementById("map"));
+window.addEventListener("load", refreshMapSize);
+map.whenReady(refreshMapSize);
 
 // ------------------------------------------------------------------
 // Atmosphere blob — an L.circle (geographic radius) filled with a radial
@@ -1651,11 +1695,10 @@ def render_html(cfg, features, legend, cruise_lines, disabled_keys=None) -> str:
     if legend_cfg.get("title"):
         legend_cfg["title"] = legend_cfg["title"].format(n_samples=n_samples, n_themes=n_themes)
 
-    # Config bounds use standard bbox order [west, south, east, north]; Leaflet
-    # wants [[south, west], [north, east]], so convert before handing to JS.
+    # View centers already use Leaflet's [latitude, longitude] order. Glacier
+    # box bounds use standard BBOX [west, south, east, north] order and need
+    # conversion to Leaflet's corner-pair representation.
     view_cfg = dict(cfg.get("view", {}))
-    if view_cfg.get("bounds") is not None:
-        view_cfg["bounds"] = _bbox_to_leaflet(view_cfg["bounds"])
     boxes_cfg = []
     for box in cfg.get("boxes", []):
         box = dict(box)
@@ -1671,6 +1714,7 @@ def render_html(cfg, features, legend, cruise_lines, disabled_keys=None) -> str:
         "view": view_cfg,
         "north_arrow": cfg.get("north_arrow", {}),
         "scale_bar": cfg.get("scale_bar", {}),
+        "bbox_display": cfg.get("bbox_display", {}),
         "logo": _prepare_logo(cfg.get("logo", {})),
         "z_order": cfg.get("z_order", {}),
         "basemaps": cfg.get("basemaps", []),

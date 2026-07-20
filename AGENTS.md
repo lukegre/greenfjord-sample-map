@@ -8,8 +8,7 @@ embeds data and configuration into a hand-written Leaflet HTML/CSS/JavaScript
 template.
 
 The active implementation does **not** use Folium or fetch its sample data from
-Google Sheets, despite the older wording in `README.md`. Use the code and paths
-below as the source of truth.
+Google Sheets. Use the code and paths below as the source of truth.
 
 ## Source of truth
 
@@ -116,11 +115,9 @@ distinction.
    test the affected control at desktop and narrow viewport sizes.
 6. Include `docs/index.html` in the change if rebuilding altered it.
 
-## Known documentation drift
+## Documentation maintenance
 
 `README.md`, the module docstring/CLI help, and
-`src/sample_loc_map/BUILD_NOTES.md` contain stale references to Folium, Google
-Sheets, `paper_map/`, `greenfjord_sample_map.html`, and a separate
-`src/sample_loc_map` project. The working paths and commands in this file are
-verified against the current repository. If touching those documents, update
-them toward the current architecture rather than copying the stale wording.
+`src/sample_loc_map/BUILD_NOTES.md` describe the current local-CSV-to-Leaflet
+architecture. Keep their paths, commands, feature descriptions, and expected
+sample counts synchronized when changing the generator or workflow.

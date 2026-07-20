@@ -31,11 +31,12 @@ legend:
   start_expanded: false # begin with all themes expanded?
 
 # ---- Initial map view ------------------------------------------------
-# Standard bbox order [west, south, east, north] (min-lon, min-lat, max-lon,
-# max-lat). All markers are still plotted; zooming out reveals coastal samples
-# beyond this frame.
+# Center uses Leaflet coordinate order [latitude, longitude]. Zoom is an integer:
+# larger values show a closer view. All markers are still plotted; zooming out
+# reveals samples beyond the initial frame.
 view:
-  bounds: [ -47.524109, 60.517427, -45.145569, 61.200844 ]
+  center: [ 60.937775, -47.08735 ]
+  zoom: 8
 
 # ---- Map furniture: north arrow + scale bar --------------------------
 # North arrow. Position works like the legend: pick a corner to anchor to,
@@ -55,6 +56,13 @@ scale_bar:
   max_width: 80 # widest the bar may grow (px)
   metric: true # show a metric (km/m) line
   imperial: false # show an imperial (mi/ft) line
+
+# Live bounds of the visible map window, reported in standard bbox order:
+# west, south, east, north. Position is a Leaflet control corner.
+bbox_display:
+  show: false
+  position: "bottomright" # topleft | topright | bottomleft | bottomright
+  precision: 5 # decimal places
 
 # ---- Project logo ----------------------------------------------------
 # GreenFjord logo pinned to a corner like the legend / north arrow (anchor + px
