@@ -102,14 +102,10 @@ z_order:
 # Note the axis order in the URL template: Esri uses {z}/{y}/{x}; most others
 # (OpenStreetMap/OpenTopoMap) use {z}/{x}/{y} and a {s} subdomain.
 basemaps:
-- name: CartoDB Voyager
-  url: "https://basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}.png"
-  attribution: CartoDB
-  max_zoom: 17
-- name: CartoDB Dark
-  url: "https://basemaps.cartocdn.com/rastertiles/dark_nolabels/{z}/{x}/{y}.png"
-  attribution: CartoDB
-  max_zoom: 17
+- name: "OpenStreetMap"
+  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  max_zoom: 18
 - name: "Satellite (Esri)"
   url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
   attribution: "Imagery &copy; Esri, Maxar, Earthstar Geographics"
@@ -118,10 +114,6 @@ basemaps:
   url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
   attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, SRTM | Style &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)'
   max_zoom: 17
-- name: "OpenStreetMap"
-  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  max_zoom: 18
 
 # ---- Research themes -------------------------------------------------
 # Default icon colours + legend styling, keyed by the CSV "Cluster" value.
